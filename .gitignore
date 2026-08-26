@@ -1,5 +1,7 @@
 /OfficeCLI/
+/output/
 ~$*
 *.tmp
 Thumbs.db
 .DS_Store
+opencode.json

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo · Nhập hồ sơ</title>
+  <style>
+    :root { --ink:#1f2937; --muted:#6b7280; --line:#dfe3e8; --bg:#f6f7f9; --blue:#1f63d8; --blue-light:#edf4ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 Arial, sans-serif; }
+    .page { max-width:1500px; margin:auto; padding:24px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:18px; }
+    h1 { margin:0; font-size:22px; } .meta { margin-top:3px; color:var(--muted); font-size:13px; }
+    .head-fields { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+    label { color:var(--muted); font-size:12px; font-weight:600; }
+    select, input, button { height:34px; border:1px solid #cdd3dc; border-radius:4px; background:#fff; color:var(--ink); font:inherit; }
+    select, input { padding:0 9px; } button { padding:0 12px; font-weight:600; cursor:pointer; }
+    button:hover { border-color:#9db8e8; background:#f7faff; } .primary { border-color:var(--blue); color:#fff; background:var(--blue); } .primary:hover { background:#1455c5; }
+    .sheet { border:1px solid var(--line); background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.035); }
+    .zone + .zone { border-top:7px solid var(--bg); }
+    .zone-head { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:53px; padding:9px 14px; border-bottom:1px solid var(--line); }
+    .zone-title { display:flex; align-items:center; gap:10px; } .zone-title h2 { margin:0; font-size:16px; } .count { padding:2px 7px; border-radius:10px; color:#45607e; background:#edf1f5; font-size:12px; }
+    .table-wrap { overflow:auto; } table { width:100%; min-width:970px; border-collapse:collapse; } th { height:35px; padding:0 8px; color:#4b5563; background:#f4f6f8; border-right:1px solid var(--line); border-bottom:1px solid var(--line); font-size:11px; font-weight:700; text-align:left; white-space:nowrap; } td { height:43px; padding:4px 6px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); } tr:last-child td { border-bottom:0; } th:last-child, td:last-child { border-right:0; }
+    td.no { width:48px; color:var(--muted); text-align:center; } td input, td select { width:100%; height:31px; border-color:transparent; background:transparent; } td input:focus, td select:focus, .field input:focus, .field select:focus { outline:2px solid #bdd3ff; border-color:#a7c2f4; background:#fff; }
+    .add-row { display:flex; align-items:center; gap:7px; width:100%; height:38px; padding:0 14px; border:0; border-top:1px solid var(--line); border-radius:0; color:var(--blue); background:#fff; text-align:left; } .add-row:hover { background:var(--blue-light); }
+    .asset-list { padding:14px; display:grid; gap:12px; } .asset-card { border:1px solid var(--line); border-radius:5px; overflow:hidden; } .asset-title { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-bottom:1px solid var(--line); background:#f7f8fa; font-size:13px; font-weight:700; } .asset-fields { display:grid; grid-template-columns:repeat(4, minmax(155px,1fr)); gap:11px 14px; padding:12px; } .field { display:grid; gap:4px; } .field.wide { grid-column:span 2; } .field label { color:#4b5563; font-size:11px; } .field input, .field select { width:100%; height:33px; padding:0 8px; border:1px solid #cdd3dc; border-radius:4px; background:#fff; } .asset-action { margin:0 14px 14px; }
+    footer { display:flex; justify-content:space-between; align-items:center; gap:15px; margin-top:15px; color:var(--muted); font-size:12px; } .link { border:0; padding:0; color:var(--blue); background:none; font-weight:600; }
+    .toast { position:fixed; right:22px; bottom:22px; padding:10px 13px; border-radius:5px; color:white; background:#26364f; opacity:0; transform:translateY(55px); transition:.2s; } .toast.show { opacity:1; transform:translateY(0); }
+    @media (max-width:720px) { .page { padding:14px; } header { align-items:flex-start; flex-direction:column; } .head-fields { width:100%; } .asset-fields { grid-template-columns:1fr; } .field.wide { grid-column:span 1; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div><h1>Nhập hồ sơ</h1><div class="meta">HS-2026-041</div></div>
+      <div class="head-fields"><label for="case-type">Loại hồ sơ</label><select id="case-type"><option>Thừa kế</option><option>Chuyển nhượng</option><option>Ủy quyền</option></select><button onclick="toast('Đã lưu dữ liệu minh hoạ')">Lưu</button><button class="primary" onclick="toast('VBA sẽ xử lý và xuất Word từ dữ liệu đã lưu')">Xuất Word</button></div>
+    </header>
+    <section class="sheet">
+      <section class="zone">
+        <div class="zone-head"><div class="zone-title"><h2>Thông tin người</h2><span class="count" id="people-count">3 dòng</span></div><button onclick="addPerson()">+ Thêm người</button></div>
+        <div class="table-wrap"><table><thead><tr><th>STT</th><th>Họ và tên</th><th>Ngày sinh</th><th>Ngày mất</th><th>Số giấy tờ</th><th>Ngày cấp</th><th>Địa chỉ</th></tr></thead><tbody id="people-body">
+          <tr data-person-id="P0001"><td class="no">1</td><td><input value="Nguyễn Văn Minh" aria-label="Họ tên người 1"></td><td><input value="12/06/1954" aria-label="Ngày sinh người 1"></td><td><input value="12/03/2024" aria-label="Ngày mất người 1"></td><td><input value="035154000123" aria-label="Số giấy tờ người 1"></td><td><input value="18/08/2021" aria-label="Ngày cấp người 1"></td><td><input value="Xã Vạn Thắng, Nam Định" aria-label="Địa chỉ người 1"></td></tr>
+          <tr data-person-id="P0002"><td class="no">2</td><td><input value="Trần Thị Lan" aria-label="Họ tên người 2"></td><td><input value="09/02/1958" aria-label="Ngày sinh người 2"></td><td><input aria-label="Ngày mất người 2"></td><td><input value="035158000456" aria-label="Số giấy tờ người 2"></td><td><input value="22/09/2021" aria-label="Ngày cấp người 2"></td><td><input value="Xã Vạn Thắng, Nam Định" aria-label="Địa chỉ người 2"></td></tr>
+          <tr data-person-id="P0003"><td class="no">3</td><td><input value="Nguyễn Thu Hà" aria-label="Họ tên người 3"></td><td><input value="17/04/1982" aria-label="Ngày sinh người 3"></td><td><input aria-label="Ngày mất người 3"></td><td><input value="035182000789" aria-label="Số giấy tờ người 3"></td><td><input value="14/05/2022" aria-label="Ngày cấp người 3"></td><td><input value="Hà Nội" aria-label="Địa chỉ người 3"></td></tr>
+        </tbody></table></div>
+        <button class="add-row" onclick="addPerson()">＋ Thêm dòng người</button>
+      </section>
+      <section class="zone">
+        <div class="zone-head"><div class="zone-title"><h2>Thông tin tài sản</h2><span class="count" id="asset-count">2 dòng</span></div><button onclick="addAsset()">+ Thêm tài sản</button></div>
+        <div class="asset-list" id="assets-list">
+          <article class="asset-card" data-asset-id="TS001"><div class="asset-title"><span>Tài sản 1</span></div><div class="asset-fields"><div class="field"><label>Loại tài sản</label><select><option>Quyền sử dụng đất</option><option>Nhà ở</option><option>Tài sản khác</option></select></div><div class="field"><label>Số phát hành / GCN</label><input value="CS 123456"></div><div class="field"><label>Số thửa</label><input value="128"></div><div class="field"><label>Tờ bản đồ</label><input value="05"></div><div class="field wide"><label>Địa chỉ</label><input value="Xóm 4, xã Vạn Thắng"></div><div class="field"><label>Diện tích (m²)</label><input value="245,0"></div><div class="field"><label>Nguồn gốc</label><input value="Nhận chuyển nhượng"></div></div></article>
+          <article class="asset-card" data-asset-id="TS002"><div class="asset-title"><span>Tài sản 2</span></div><div class="asset-fields"><div class="field"><label>Loại tài sản</label><select><option>Nhà ở</option><option>Quyền sử dụng đất</option><option>Tài sản khác</option></select></div><div class="field"><label>Số phát hành / GCN</label><input value="CS 123456"></div><div class="field"><label>Số thửa</label><input></div><div class="field"><label>Tờ bản đồ</label><input></div><div class="field wide"><label>Địa chỉ</label><input value="Xóm 4, xã Vạn Thắng"></div><div class="field"><label>Diện tích (m²)</label><input value="112,5"></div><div class="field"><label>Nguồn gốc</label><input value="Tạo lập trên đất"></div></div></article>
+        </div>
+        <button class="add-row" onclick="addAsset()">＋ Thêm dòng tài sản</button>
+      </section>
+    </section>
+    <footer><span>Quan hệ, phân chia và cấu hình xuất được xử lý ở sheet phụ / VBA.</span><button class="link" onclick="toast('Demo: mở sheet phụ để điều chỉnh dữ liệu phái sinh')">Mở sheet phụ</button></footer>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    let people = 3, assets = 2, toastTimer;
+    function toast(message) { const el = document.getElementById('toast'); el.textContent = message; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2200); }
+    function addPerson() { people++; const id = 'P' + String(people).padStart(4, '0'); const row = document.createElement('tr'); row.dataset.personId=id; row.innerHTML = `<td class="no">${people}</td><td><input aria-label="Họ tên người ${people}"></td><td><input aria-label="Ngày sinh người ${people}"></td><td><input aria-label="Ngày mất người ${people}"></td><td><input aria-label="Số giấy tờ người ${people}"></td><td><input aria-label="Ngày cấp người ${people}"></td><td><input aria-label="Địa chỉ người ${people}"></td>`; document.getElementById('people-body').appendChild(row); document.getElementById('people-count').textContent = `${people} dòng`; row.querySelector('input').focus(); }
+    function addAsset() { assets++; const id = 'TS' + String(assets).padStart(3, '0'); const card = document.createElement('article'); card.className='asset-card'; card.dataset.assetId=id; card.innerHTML = `<div class="asset-title"><span>Tài sản ${assets}</span></div><div class="asset-fields"><div class="field"><label>Loại tài sản</label><select><option>Quyền sử dụng đất</option><option>Nhà ở</option><option>Tài sản khác</option></select></div><div class="field"><label>Số phát hành / GCN</label><input></div><div class="field"><label>Số thửa</label><input></div><div class="field"><label>Tờ bản đồ</label><input></div><div class="field wide"><label>Địa chỉ</label><input></div><div class="field"><label>Diện tích (m²)</label><input></div><div class="field"><label>Nguồn gốc</label><input></div></div>`; document.getElementById('assets-list').appendChild(card); document.getElementById('asset-count').textContent = `${assets} dòng`; card.querySelector('select').focus(); }
+  </script>
+</body>
+</html>
