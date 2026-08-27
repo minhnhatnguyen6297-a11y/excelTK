@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo · Nhánh thừa kế theo tầng</title>
+  <style>
+    :root {
+      --ink:#17202d;
+      --muted:#667085;
+      --line:#d8dee8;
+      --soft:#f4f6f9;
+      --excel:#217346;
+      --l1:#e8f1ff; --l2:#e5f7ee; --l3:#fff3d6; --l4:#f1eaff; --l5:#ffe9ec;
+      --d1:#4472c4; --d2:#2e8b68; --d3:#c48a17; --d4:#7b61b3; --d5:#c85c70;
+    }
+
+    * { box-sizing:border-box; }
+    body {
+      margin:0;
+      min-width:1120px;
+      color:var(--ink);
+      background:#eef1f5;
+      font-family:"Segoe UI", Arial, sans-serif;
+      font-size:14px;
+    }
+    button, input { font:inherit; }
+    button { color:inherit; }
+
+    .page {
+      width:min(1420px, calc(100% - 42px));
+      margin:20px auto 28px;
+    }
+    .intro {
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:24px;
+      margin-bottom:14px;
+    }
+    .intro h1 { margin:0 0 4px; font-size:23px; letter-spacing:-.25px; }
+    .intro p { margin:0; color:var(--muted); }
+    .decision {
+      padding:8px 12px;
+      border:1px solid #b8d8c6;
+      border-radius:8px;
+      color:#175d39;
+      background:#edf8f2;
+      font-weight:650;
+      white-space:nowrap;
+    }
+
+    .stage-tabs {
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:8px;
+      margin-bottom:10px;
+    }
+    .stage-tab {
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding:10px 13px;
+      border:1px solid var(--line);
+      border-radius:9px;
+      background:#fff;
+      text-align:left;
+      cursor:pointer;
+    }
+    .stage-tab:hover { border-color:#9aabc1; }
+    .stage-tab.active { border-color:#4b79b8; box-shadow:0 0 0 2px #dceaff inset; }
+    .step-no {
+      display:grid;
+      place-items:center;
+      width:27px;
+      height:27px;
+      border-radius:50%;
+      color:#fff;
+      background:#738096;
+      font-weight:750;
+      flex:0 0 auto;
+    }
+    .stage-tab.active .step-no { background:#315f9c; }
+    .stage-tab strong { display:block; font-size:13.5px; }
+    .stage-tab small { display:block; margin-top:2px; color:var(--muted); }
+
+    .palette-bar {
+      display:flex;
+      align-items:center;
+      gap:9px;
+      padding:9px 12px;
+      border:1px solid var(--line);
+      border-bottom:0;
+      border-radius:10px 10px 0 0;
+      background:#fff;
+    }
+    .palette-title { margin-right:3px; font-weight:700; }
+    .palette-note { color:var(--muted); font-size:12px; margin-left:auto; }
+    .palette {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 8px;
+      border:1px solid #d5dbe4;
+      border-radius:7px;
+      background:#fff;
+      cursor:pointer;
+    }
+    .palette.active { border-color:#315f9c; box-shadow:0 0 0 2px #e2ecfb; }
+    .swatches { display:flex; overflow:hidden; border:1px solid #cdd3dc; border-radius:4px; }
+    .swatches i {
+      display:grid;
+      place-items:center;
+      width:20px;
+      height:17px;
+      color:#4d596a;
+      font-size:8px;
+      font-style:normal;
+      font-weight:750;
+    }
+    .palette b { font-size:12px; font-weight:650; }
+
+    .viewer {
+      overflow:hidden;
+      border:1px solid #bcc5d1;
+      border-radius:0 0 11px 11px;
+      background:#fff;
+      box-shadow:0 14px 32px rgba(27,39,57,.12);
+    }
+    .window-bar {
+      height:34px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 13px;
+      color:#fff;
+      background:#17653d;
+      font-size:12.5px;
+    }
+    .window-title { display:flex; align-items:center; gap:8px; }
+    .excel-mark {
+      display:grid;
+      place-items:center;
+      width:22px;
+      height:22px;
+      border-radius:3px;
+      background:#fff;
+      color:#17653d;
+      font-weight:850;
+    }
+    .window-actions { letter-spacing:12px; opacity:.88; }
+
+    .sheet { position:relative; min-height:665px; background:#f7f8fa; }
+    .tool-ribbon {
+      height:72px;
+      display:flex;
+      align-items:center;
+      gap:17px;
+      padding:10px 22px;
+      border-bottom:1px solid #d3d9e2;
+      background:#fff;
+    }
+    .tier-setting { display:flex; align-items:center; gap:8px; }
+    .tier-setting label { font-weight:700; }
+    .tier-setting input {
+      width:58px;
+      height:34px;
+      border:1px solid #aeb8c5;
+      border-radius:6px;
+      padding:0 7px;
+      font-weight:750;
+      background:#fff;
+    }
+    .tool-help {
+      padding-left:17px;
+      border-left:1px solid #dde2e9;
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.35;
+    }
+    .spacer { flex:1; }
+    .export-btn {
+      height:38px;
+      padding:0 18px;
+      border:1px solid #155f38;
+      border-radius:7px;
+      color:#fff;
+      background:var(--excel);
+      font-weight:750;
+      cursor:pointer;
+      box-shadow:0 2px 4px rgba(24,91,55,.18);
+    }
+    .export-btn:hover { background:#185f3a; }
+
+    .workspace { padding:19px 22px 0; }
+    .sheet-heading {
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      margin-bottom:10px;
+    }
+    .sheet-heading h2 { margin:0 0 3px; font-size:18px; }
+    .sheet-heading p { margin:0; color:var(--muted); font-size:12.5px; }
+    .legend { display:flex; gap:12px; color:#5f6979; font-size:12px; }
+    .legend span { display:flex; align-items:center; gap:5px; }
+    .legend i { width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+    .table-wrap {
+      position:relative;
+      overflow:visible;
+      border:1px solid #aeb8c5;
+      background:#fff;
+    }
+    table { width:100%; border-collapse:collapse; table-layout:fixed; }
+    th {
+      height:38px;
+      padding:6px 9px;
+      border-right:1px solid #cbd2dc;
+      border-bottom:1px solid #aeb8c5;
+      color:#374151;
+      background:#edf0f4;
+      font-size:12px;
+      text-align:left;
+      white-space:nowrap;
+    }
+    th:last-child, td:last-child { border-right:0; }
+    td {
+      height:51px;
+      padding:5px 9px;
+      border-right:1px solid rgba(134,147,164,.35);
+      border-bottom:1px solid rgba(134,147,164,.42);
+      vertical-align:middle;
+      background:var(--row-bg);
+    }
+    tbody tr:last-child td { border-bottom:0; }
+    tbody tr { --row-bg:#fff; --row-dark:#728096; }
+    tbody tr[data-level="1"] { --row-bg:var(--l1); --row-dark:var(--d1); }
+    tbody tr[data-level="2"] { --row-bg:var(--l2); --row-dark:var(--d2); }
+    tbody tr[data-level="3"] { --row-bg:var(--l3); --row-dark:var(--d3); }
+    tbody tr[data-level="4"] { --row-bg:var(--l4); --row-dark:var(--d4); }
+    tbody tr[data-level="5"] { --row-bg:var(--l5); --row-dark:var(--d5); }
+    tbody tr[data-level] td:first-child { box-shadow:5px 0 0 var(--row-dark) inset; }
+    tbody tr.focus-row td { outline:2px solid color-mix(in srgb, var(--row-dark) 68%, white); outline-offset:-2px; }
+
+    .c-stt { width:57px; text-align:center; }
+    .c-tier { width:103px; text-align:center; }
+    .c-name { width:285px; }
+    .c-birth { width:145px; }
+    .c-death { width:145px; }
+    .c-receive { width:128px; text-align:center; }
+    .c-status { width:148px; }
+    .row-number { color:#596579; font-variant-numeric:tabular-nums; }
+    .name { font-weight:700; }
+    .person-id { display:block; margin-top:2px; color:#778295; font-size:10.5px; }
+    .muted { color:#8a94a3; }
+    .tier-btn {
+      min-width:63px;
+      height:30px;
+      border:1px solid var(--row-dark);
+      border-radius:6px;
+      color:#fff;
+      background:var(--row-dark);
+      font-weight:800;
+      cursor:pointer;
+      box-shadow:0 1px 2px rgba(29,38,53,.13);
+    }
+    .tier-btn:hover { filter:brightness(.94); transform:translateY(-1px); }
+    .tier-btn span { opacity:.76; margin-left:4px; }
+    .tier-btn.locked { cursor:default; }
+    .tier-btn.locked:hover { filter:none; transform:none; }
+
+    .check {
+      appearance:none;
+      width:21px;
+      height:21px;
+      margin:0;
+      border:1.5px solid #7d8998;
+      border-radius:4px;
+      background:#fff;
+      vertical-align:middle;
+      cursor:pointer;
+    }
+    .check:checked { border-color:#216e48; background:#217346; }
+    .check:checked::after {
+      content:"✓";
+      display:block;
+      color:#fff;
+      font-size:16px;
+      font-weight:850;
+      line-height:18px;
+      text-align:center;
+    }
+    .check:disabled { border-color:#b9c1cc; background:#e5e8ed; cursor:not-allowed; }
+    .status {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:5px 8px;
+      border-radius:999px;
+      font-size:11.5px;
+      font-weight:700;
+      background:#fff;
+      border:1px solid #cfd6df;
+    }
+    .status::before { content:""; width:7px; height:7px; border-radius:50%; background:#7f8b9c; }
+    .status.dead { color:#555f6e; background:#f2f3f5; }
+    .status.dead::before { background:#737d8c; }
+    .status.receive { color:#17613d; background:#eff9f3; border-color:#a9d5bc; }
+    .status.receive::before { background:#218653; }
+    .status.refuse { color:#81591a; background:#fff8e8; border-color:#ead39b; }
+    .status.refuse::before { background:#d39728; }
+
+    .stage-callout {
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      min-height:61px;
+      margin-top:12px;
+      padding:10px 12px;
+      border:1px solid #b9cbe4;
+      border-radius:8px;
+      color:#263c59;
+      background:#eef5ff;
+    }
+    .callout-no {
+      display:grid;
+      place-items:center;
+      width:26px;
+      height:26px;
+      border-radius:50%;
+      color:#fff;
+      background:#376aa8;
+      font-weight:800;
+      flex:0 0 auto;
+    }
+    .stage-callout strong { display:block; margin-bottom:3px; }
+    .stage-callout span { color:#52657d; font-size:12.5px; }
+    .formula {
+      margin-left:auto;
+      padding:7px 10px;
+      border:1px solid #d2d9e3;
+      border-radius:6px;
+      color:#4d596a;
+      background:#fff;
+      font-family:Consolas, monospace;
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    .summary-strip {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-height:45px;
+      margin-top:12px;
+      padding:8px 11px;
+      border:1px solid #d5dbe4;
+      border-radius:7px;
+      background:#fff;
+    }
+    .summary-strip > strong { margin-right:5px; }
+    .metric { padding:5px 9px; border:1px solid #d5dbe4; border-radius:6px; background:#f8f9fb; }
+    .metric b { margin-right:4px; }
+    .future-note { margin-left:auto; color:var(--muted); font-size:12px; }
+
+    .sheet-tabs {
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      height:36px;
+      display:flex;
+      align-items:flex-end;
+      gap:2px;
+      padding-left:38px;
+      border-top:1px solid #d8dde5;
+      background:#eef1f4;
+    }
+    .sheet-tab { padding:8px 25px 7px; color:#667085; background:#e2e6eb; font-size:12px; }
+    .sheet-tab.active { color:#135d37; background:#fff; border-bottom:3px solid #217346; font-weight:700; }
+
+    .viewer-footer {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      min-height:72px;
+      padding:10px 15px;
+      border-top:1px solid #d7dde5;
+      background:#fff;
+    }
+    .caption { display:flex; align-items:center; gap:11px; }
+    .caption-badge { padding:5px 7px; border-radius:5px; color:#fff; background:#304f78; font-size:11px; font-weight:800; }
+    .caption strong { display:block; margin-bottom:2px; }
+    .caption span:last-child { display:block; color:var(--muted); font-size:12px; }
+    .pager { display:flex; gap:7px; }
+    .pager button {
+      min-width:88px;
+      padding:7px 11px;
+      border:1px solid #bac3d0;
+      border-radius:6px;
+      background:#fff;
+      cursor:pointer;
+    }
+    .pager button:disabled { color:#a4acb8; background:#f3f4f6; cursor:default; }
+
+    .toast {
+      position:absolute;
+      right:31px;
+      top:93px;
+      z-index:4;
+      max-width:360px;
+      padding:10px 12px;
+      border:1px solid #9fc5ad;
+      border-radius:7px;
+      color:#175b38;
+      background:#f0faf4;
+      box-shadow:0 6px 16px rgba(31,49,40,.14);
+      opacity:0;
+      transform:translateY(-7px);
+      pointer-events:none;
+      transition:.18s ease;
+    }
+    .toast.show { opacity:1; transform:translateY(0); }
+
+    .export-panel {
+      position:fixed;
+      inset:0;
+      z-index:10;
+      display:none;
+      place-items:center;
+      background:rgba(21,29,40,.46);
+    }
+    .export-panel.open { display:grid; }
+    .export-card {
+      width:520px;
+      padding:20px;
+      border-radius:10px;
+      background:#fff;
+      box-shadow:0 18px 55px rgba(0,0,0,.25);
+    }
+    .export-card h3 { margin:0 0 4px; }
+    .export-card > p { margin:0 0 15px; color:var(--muted); }
+    .export-group { margin:8px 0; padding:9px 11px; border:1px solid #d9dfe7; border-radius:6px; background:#f8f9fb; }
+    .export-group b { display:inline-block; min-width:130px; }
+    .export-actions { text-align:right; margin-top:15px; }
+    .export-actions button { padding:7px 14px; border:1px solid #aeb8c5; border-radius:6px; background:#fff; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="intro">
+      <div>
+        <h1>Nhánh thừa kế theo tầng · bản demo đã chốt</h1>
+        <p>Nhập người liên tục, bấm một lần để đổi tầng, chỉ tích người nhận đất.</p>
+      </div>
+      <div class="decision">Không chọn vai trò · Không double-click · Tối đa 5 tầng</div>
+    </header>
+
+    <nav class="stage-tabs" aria-label="Các giai đoạn">
+      <button class="stage-tab active" data-stage="0">
+        <span class="step-no">1</span><span><strong>Nhập người liên tục</strong><small>Dòng mới kế thừa tầng gần nhất</small></span>
+      </button>
+      <button class="stage-tab" data-stage="1">
+        <span class="step-no">2</span><span><strong>Bấm một lần để đổi tầng</strong><small>Cả hàng đổi màu, nhánh được lưu</small></span>
+      </button>
+      <button class="stage-tab" data-stage="2">
+        <span class="step-no">3</span><span><strong>Chọn người nhận đất</strong><small>Từ chối được tính tự động</small></span>
+      </button>
+    </nav>
+
+    <section class="palette-bar">
+      <span class="palette-title">Dải màu:</span>
+      <button class="palette active" data-palette="a"><span class="swatches"></span><b>A · Xanh dịu</b></button>
+      <button class="palette" data-palette="b"><span class="swatches"></span><b>B · Tự nhiên</b></button>
+      <button class="palette" data-palette="c"><span class="swatches"></span><b>C · Tương phản</b></button>
+      <button class="palette" data-palette="d"><span class="swatches"></span><b>D · Pastel sáng</b></button>
+      <span class="palette-note">Bấm A/B/C/D để xem toàn bảng · mỗi dải có đủ T1–T5</span>
+    </section>
+
+    <section class="viewer">
+      <div class="window-bar">
+        <div class="window-title"><span class="excel-mark">X</span><span>HS-2026-041 · Hồ sơ thừa kế.xlsx</span></div>
+        <div class="window-actions">— □ ×</div>
+      </div>
+
+      <div class="sheet">
+        <div class="tool-ribbon">
+          <div class="tier-setting"><label for="tier-count">Số tầng</label><input id="tier-count" type="number" min="1" max="5" value="3"></div>
+          <div class="tool-help">Mặc định 3 · hỗ trợ tối đa 5 tầng<br>Hai vị trí đầu là chủ đất mặc định</div>
+          <div class="spacer"></div>
+          <button class="export-btn" id="export">Xuất Văn bản</button>
+        </div>
+
+        <div class="workspace">
+          <div class="sheet-heading">
+            <div><h2>Danh sách người</h2><p>Một người một dòng · không cần khai cha, mẹ, con hay vợ/chồng</p></div>
+            <div class="legend"><span><i style="background:#737d8c"></i>Đã chết</span><span><i style="background:#218653"></i>Nhận đất</span><span><i style="background:#d39728"></i>Từ chối</span></div>
+          </div>
+
+          <div class="table-wrap">
+            <table aria-label="Danh sách người trong hồ sơ">
+              <thead>
+                <tr>
+                  <th class="c-stt">STT</th>
+                  <th class="c-tier">Tầng · 1 click</th>
+                  <th class="c-name">Họ và tên</th>
+                  <th class="c-birth">Ngày sinh</th>
+                  <th class="c-death">Ngày chết</th>
+                  <th class="c-receive">Nhận đất</th>
+                  <th class="c-status">Kết quả</th>
+                </tr>
+              </thead>
+              <tbody id="people"></tbody>
+            </table>
+          </div>
+
+          <div class="stage-callout" id="callout">
+            <span class="callout-no" id="callout-no">1</span>
+            <div><strong id="callout-title"></strong><span id="callout-text"></span></div>
+            <code class="formula" id="formula"></code>
+          </div>
+          <div class="summary-strip" id="summary"></div>
+        </div>
+
+        <div class="toast" id="toast"></div>
+        <div class="sheet-tabs"><span class="sheet-tab active">Người</span><span class="sheet-tab">Tài sản</span><span class="sheet-tab">Phụ</span></div>
+      </div>
+
+      <footer class="viewer-footer">
+        <div class="caption"><span class="caption-badge" id="caption-badge">ẢNH 1/3</span><div><strong id="caption-title"></strong><span id="caption-text"></span></div></div>
+        <div class="pager"><button id="previous" disabled>← Trước</button><button id="next">Tiếp →</button></div>
+      </footer>
+    </section>
+  </main>
+
+  <div class="export-panel" id="export-panel">
+    <div class="export-card">
+      <h3>Dữ liệu sẵn sàng xuất Word</h3>
+      <p>Nhóm người được lập từ dữ liệu, không đọc màu của dòng.</p>
+      <div class="export-group"><b>Chủ đất</b> Nguyễn Văn An; Trần Thị Bình</div>
+      <div class="export-group"><b>Đã chết</b> 3 người</div>
+      <div class="export-group"><b>Nhận đất</b> Nguyễn Minh Đức; Lê Thu Hà</div>
+      <div class="export-group"><b>Từ chối</b> Nguyễn Ngọc Mai · nhóm TC_DEFAULT</div>
+      <div class="export-actions"><button id="close-export">Đóng</button></div>
+    </div>
+  </div>
+
+  <script>
+    const palettes = {
+      a: { light:['#e8f1ff','#e5f7ee','#fff3d6','#f1eaff','#ffe9ec'], dark:['#4472c4','#2e8b68','#c48a17','#7b61b3','#c85c70'] },
+      b: { light:['#f4eadb','#e6f0df','#e4f0f2','#ece7f4','#f7e6df'], dark:['#9a6b2f','#668652','#46818b','#796695','#b66a4d'] },
+      c: { light:['#e8eef7','#dff1ef','#fff0c8','#e8e2fa','#f8dfd2'], dark:['#405f8b','#247a75','#ad7800','#624fa4','#b75531'] },
+      d: { light:['#eaf2ff','#e6f6f0','#fff7d6','#f4eafa','#ffede5'], dark:['#2f6fde','#218463','#b98500','#8a4cac','#d46239'] }
+    };
+
+    // MVP: UI tích chọn chủ đất được ẩn; hai vị trí đầu mặc định là chủ đất.
+    // Future: hiển thị LaChuDat để hỗ trợ 3+ đồng chủ đất, không đổi schema/export contract.
+    const basePeople = [
+      { id:'P0001', name:'Nguyễn Văn An', birth:'12/03/1948', death:'14/06/2021', level:1, receive:false, owner:true },
+      { id:'P0002', name:'Trần Thị Bình', birth:'07/11/1952', death:'03/09/2023', level:1, receive:false, owner:true },
+      { id:'P0003', name:'Nguyễn Văn Cường', birth:'18/02/1975', death:'18/02/2019', level:2, receive:false }
+    ];
+
+    const stages = [
+      {
+        people:[...basePeople, { id:'P0004', name:'Nguyễn Minh Đức', birth:'20/08/2001', death:'', level:2, receive:false, focus:true }],
+        title:'Nhập thẳng người kế tiếp',
+        text:'Sau khi gõ họ tên, dòng mới tạm kế thừa T2. Không xuất hiện hộp chọn vai trò.',
+        formula:'Dòng mới: T2',
+        caption:'Nhập người không bị ngắt quãng',
+        captionText:'Nhập hết thông tin trên cùng một bảng; hệ thống chưa hỏi Đức là con của ai.'
+      },
+      {
+        people:[...basePeople, { id:'P0004', name:'Nguyễn Minh Đức', birth:'20/08/2001', death:'', level:3, receive:false, focus:true }],
+        title:'Bấm đúng một lần vào nút T2',
+        text:'Nút đổi thành T3, cả hàng đổi màu và hệ thống lưu nhánh của Nguyễn Văn Cường (P0003).',
+        formula:'P0004.Parent = P0003',
+        caption:'Một lần bấm là đủ để gán nhánh',
+        captionText:'Không double-click, không mở màn hình phụ và không phải chọn cha/mẹ/con.'
+      },
+      {
+        people:[
+          ...basePeople,
+          { id:'P0004', name:'Nguyễn Minh Đức', birth:'20/08/2001', death:'', level:3, receive:true },
+          { id:'P0005', name:'Nguyễn Ngọc Mai', birth:'11/04/2004', death:'', level:3, receive:false },
+          { id:'P0006', name:'Lê Thu Hà', birth:'09/12/1978', death:'', level:2, receive:true }
+        ],
+        title:'Chỉ tích những người nhận đất',
+        text:'Người còn sống không được tích nhận sẽ tự động thuộc nhóm từ chối. Không cần thêm một thao tác nữa.',
+        formula:'Từ chối = Tổng − Chết − Nhận',
+        caption:'Kết quả được tính ngay trên từng dòng',
+        captionText:'Ba trạng thái loại trừ nhau: Đã chết, Nhận đất hoặc Từ chối.'
+      }
+    ];
+
+    const peopleBody = document.getElementById('people');
+    const tabs = [...document.querySelectorAll('.stage-tab')];
+    const previous = document.getElementById('previous');
+    const next = document.getElementById('next');
+    const toast = document.getElementById('toast');
+    let current = 0;
+    let workingPeople = [];
+
+    function statusOf(person) {
+      if (person.death) return ['dead', 'Đã chết'];
+      if (person.receive) return ['receive', 'Nhận đất'];
+      return ['refuse', 'Từ chối'];
+    }
+
+    function renderRows() {
+      peopleBody.innerHTML = workingPeople.map((person, index) => {
+        const [statusClass, statusText] = statusOf(person);
+        return `<tr data-level="${person.level}" data-id="${person.id}" class="${person.focus ? 'focus-row' : ''}">
+          <td class="c-stt row-number">${index + 1}</td>
+          <td class="c-tier"><button class="tier-btn ${person.owner ? 'locked' : ''}" title="${person.owner ? 'Vị trí chủ đất mặc định, cố định ở T1' : 'Bấm một lần để đổi tầng'}" data-id="${person.id}">T${person.level}<span>${person.owner ? '·' : '›'}</span></button></td>
+          <td class="c-name"><span class="name">${person.name}</span><span class="person-id">${person.id}</span></td>
+          <td class="c-birth">${person.birth || '<span class="muted">—</span>'}</td>
+          <td class="c-death">${person.death || '<span class="muted">—</span>'}</td>
+          <td class="c-receive"><input class="check" type="checkbox" data-id="${person.id}" ${person.receive ? 'checked' : ''} ${person.death ? 'disabled' : ''} aria-label="${person.name} nhận đất"></td>
+          <td class="c-status"><span class="status ${statusClass}">${statusText}</span></td>
+        </tr>`;
+      }).join('');
+      peopleBody.querySelectorAll('.tier-btn:not(.locked)').forEach(button => button.addEventListener('click', cycleTier));
+      peopleBody.querySelectorAll('.check').forEach(checkbox => checkbox.addEventListener('change', toggleReceive));
+      renderSummary();
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove('show'), 1900);
+    }
+
+    function cycleTier(event) {
+      const person = workingPeople.find(item => item.id === event.currentTarget.dataset.id);
+      const max = Number(document.getElementById('tier-count').value) || 3;
+      person.level = person.level >= max ? 2 : person.level + 1;
+      renderRows();
+      showToast(`${person.name}: đã chuyển sang T${person.level}. Cả dòng đã đổi màu.`);
+    }
+
+    function toggleReceive(event) {
+      const person = workingPeople.find(item => item.id === event.currentTarget.dataset.id);
+      person.receive = event.currentTarget.checked;
+      renderRows();
+      showToast(`${person.name}: ${person.receive ? 'Nhận đất' : 'Từ chối (tự động)'}.`);
+    }
+
+    function renderSummary() {
+      const dead = workingPeople.filter(person => person.death).length;
+      const receive = workingPeople.filter(person => !person.death && person.receive).length;
+      const refuse = workingPeople.filter(person => !person.death && !person.receive).length;
+      document.getElementById('summary').innerHTML = `<strong>Tổng hợp:</strong>
+        <span class="metric"><b>${dead}</b> đã chết</span>
+        <span class="metric"><b>${receive}</b> nhận đất</span>
+        <span class="metric"><b>${refuse}</b> từ chối</span>
+        <span class="future-note">Đã chừa sẵn NhomTuChoiID; chưa hiển thị UI chia nhóm.</span>`;
+    }
+
+    function showStage(index) {
+      current = Math.max(0, Math.min(stages.length - 1, index));
+      const stage = stages[current];
+      workingPeople = stage.people.map(person => ({...person}));
+      tabs.forEach((tab, i) => tab.classList.toggle('active', i === current));
+      document.getElementById('callout-no').textContent = current + 1;
+      document.getElementById('callout-title').textContent = stage.title;
+      document.getElementById('callout-text').textContent = stage.text;
+      document.getElementById('formula').textContent = stage.formula;
+      document.getElementById('caption-badge').textContent = `ẢNH ${current + 1}/${stages.length}`;
+      document.getElementById('caption-title').textContent = stage.caption;
+      document.getElementById('caption-text').textContent = stage.captionText;
+      previous.disabled = current === 0;
+      next.disabled = current === stages.length - 1;
+      renderRows();
+    }
+
+    function applyPalette(key) {
+      const palette = palettes[key];
+      palette.light.forEach((color, i) => document.documentElement.style.setProperty(`--l${i + 1}`, color));
+      palette.dark.forEach((color, i) => document.documentElement.style.setProperty(`--d${i + 1}`, color));
+      document.querySelectorAll('.palette').forEach(button => button.classList.toggle('active', button.dataset.palette === key));
+    }
+
+    document.querySelectorAll('.palette').forEach(button => {
+      const palette = palettes[button.dataset.palette];
+      button.querySelector('.swatches').innerHTML = palette.light.map((color, index) => `<i style="background:${color}">${index + 1}</i>`).join('');
+      button.addEventListener('click', () => applyPalette(button.dataset.palette));
+    });
+
+    tabs.forEach((tab, index) => tab.addEventListener('click', () => showStage(index)));
+    previous.addEventListener('click', () => showStage(current - 1));
+    next.addEventListener('click', () => showStage(current + 1));
+    document.addEventListener('keydown', event => {
+      if (event.key === 'ArrowLeft') showStage(current - 1);
+      if (event.key === 'ArrowRight') showStage(current + 1);
+    });
+
+    document.getElementById('tier-count').addEventListener('change', event => {
+      let value = Math.max(1, Math.min(5, Number(event.target.value) || 3));
+      const usedMax = Math.max(...workingPeople.map(person => person.level));
+      if (value < usedMax) {
+        value = usedMax;
+        showToast(`Không thể giảm: danh sách đang có dữ liệu T${usedMax}.`);
+      }
+      event.target.value = value;
+    });
+
+    const exportPanel = document.getElementById('export-panel');
+    document.getElementById('export').addEventListener('click', () => exportPanel.classList.add('open'));
+    document.getElementById('close-export').addEventListener('click', () => exportPanel.classList.remove('open'));
+    exportPanel.addEventListener('click', event => { if (event.target === exportPanel) exportPanel.classList.remove('open'); });
+
+    const params = new URLSearchParams(location.search);
+    const requestedStage = Number(params.get('stage'));
+    const requestedPalette = params.get('palette');
+    applyPalette(palettes[requestedPalette] ? requestedPalette : 'a');
+    showStage(requestedStage >= 1 && requestedStage <= stages.length ? requestedStage - 1 : 0);
+  </script>
+</body>
+</html>
