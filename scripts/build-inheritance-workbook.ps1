@@ -596,6 +596,7 @@ try {
     }
     $inputSheet.Range("B4").Locked = $false
     $inputSheet.Range("B9:G38").Locked = $false
+    $inputSheet.Range("C103:C106").Locked = $false
     foreach ($cardStartRow in $assetCardStartRows) {
         for ($fieldIndex = 0; $fieldIndex -lt $assetFields.Count; $fieldIndex++) {
             $fieldRow = $cardStartRow + $fieldIndex + 1
@@ -606,6 +607,34 @@ try {
                 $inputSheet.Cells.Item($fieldRow, 3).Locked = $false
             }
         }
+    }
+    $inputSheet.Range("B102").Value2 = "THÔNG TIN HỒ SƠ"
+    $inputSheet.Range("B102:C102").Font.Name = "Arial"
+    $inputSheet.Range("B102:C102").Font.Bold = $true
+    $inputSheet.Range("B102:C102").Font.Color = Color-Ref "FFFFFF"
+    $inputSheet.Range("B102:C102").Interior.Color = Color-Ref "304F78"
+    $inputSheet.Range("B102:C102").Borders.Color = Color-Ref "7AA7D8"
+    $inputSheet.Range("B102:C102").Borders.Weight = 1
+    $profileFields = @(
+        @{ Row = 103; Name = "NiemYet"; Label = "Niêm yết" },
+        @{ Row = 104; Name = "SoCongChung"; Label = "Số công chứng" },
+        @{ Row = 105; Name = "NguoiUyQuyen"; Label = "Người ủy quyền" },
+        @{ Row = 106; Name = "NguoiUyQuyen2"; Label = "Người ủy quyền 2" }
+    )
+    foreach ($profileField in $profileFields) {
+        $inputSheet.Cells.Item([int]$profileField.Row, 2).Value2 = [string]$profileField.Label
+        $inputSheet.Cells.Item($profileField.Row, 2).Font.Name = "Arial"
+        $inputSheet.Cells.Item($profileField.Row, 2).Font.Bold = $true
+        $inputSheet.Cells.Item($profileField.Row, 2).Interior.Color = Color-Ref "F4F6F9"
+        $inputSheet.Cells.Item($profileField.Row, 3).Font.Name = "Arial"
+        $inputSheet.Cells.Item($profileField.Row, 3).NumberFormat = "@"
+        $inputSheet.Cells.Item($profileField.Row, 3).Interior.Color = Color-Ref "FFFFFF"
+        $inputSheet.Range("B$($profileField.Row):C$($profileField.Row)").Borders.Color = Color-Ref "7AA7D8"
+        $inputSheet.Range("B$($profileField.Row):C$($profileField.Row)").Borders.Weight = 1
+    }
+    foreach ($profileRow in @(105, 106)) {
+        $inputSheet.Cells.Item($profileRow, 3).Validation.Delete()
+        $inputSheet.Cells.Item($profileRow, 3).Validation.Add(3, 1, 1, "=DanhMuc_NguoiUyQuyen")
     }
     $inputSheet.Range("B9:G38").Borders.Color = Color-Ref "7AA7D8"
     $inputSheet.Range("B9:G38").Borders.Weight = 1
@@ -632,7 +661,7 @@ try {
     $inputSheet.PageSetup.Zoom = $false
     $inputSheet.PageSetup.FitToPagesWide = 1
     $inputSheet.PageSetup.FitToPagesTall = $false
-    $inputSheet.PageSetup.PrintArea = '$A$1:$I$100'
+    $inputSheet.PageSetup.PrintArea = '$A$1:$I$106'
     $inputSheet.Tab.Color = Color-Ref "217346"
 
     $configSheet.Range("A1:B1").Merge()
