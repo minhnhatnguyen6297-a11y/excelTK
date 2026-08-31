@@ -14,6 +14,7 @@ if (-not (Test-Path -LiteralPath $officeCli)) {
 $workspace = (Resolve-Path -LiteralPath $WorkspaceRoot).Path
 $sourceWorkbook = Join-Path $workspace "templates\excel\Dữ liệu thừa kế (2).xlsb"
 $placeholderReport = Join-Path $workspace "docs\reference\word-placeholders-2026-08-31.md"
+$catalogDataPath = Join-Path $workspace "src\data\danh-muc.json"
 $vbaRoot = Join-Path $workspace "src\vba"
 $outputDir = Join-Path $workspace "output\workbook-dev"
 $wordOutputDir = Join-Path $workspace "output\word-test"
@@ -70,6 +71,13 @@ function Color-Ref {
     $g = [Convert]::ToInt32($clean.Substring(2, 2), 16)
     $b = [Convert]::ToInt32($clean.Substring(4, 2), 16)
     return $r + ($g * 256) + ($b * 65536)
+}
+
+function Write-ColumnValues {
+    param([object]$Sheet, [int]$Column, [object[]]$Values)
+    for ($i = 0; $i -lt $Values.Count; $i++) {
+        $Sheet.Cells.Item($i + 4, $Column).Value2 = [string]$Values[$i]
+    }
 }
 
 function Convert-VbaUnicodeLiterals {
@@ -210,6 +218,10 @@ if (-not (Test-Path -LiteralPath $sourceWorkbook)) {
 if (-not (Test-Path -LiteralPath $placeholderReport)) {
     throw "Không tìm thấy báo cáo placeholder để dựng sức chứa mẫu: $placeholderReport"
 }
+if (-not (Test-Path -LiteralPath $catalogDataPath)) {
+    throw "Không tìm thấy dữ liệu danh mục đã chốt: $catalogDataPath"
+}
+$catalogData = (Get-Content -Raw -Encoding UTF8 -LiteralPath $catalogDataPath | ConvertFrom-Json)
 
 $sourceHashBefore = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourceWorkbook).Hash
 
@@ -300,20 +312,14 @@ try {
     $catalogSheet = $workbook.Worksheets.Item("DanhMuc")
     $peopleTable = $inputSheet.ListObjects.Item("tblNguoi")
 
-    $sourceBook = $excel.Workbooks.Open($sourceWorkbook, 0, $true)
-    $sourceTables = $sourceBook.Worksheets.Item("Tables")
-    $catalogSheet.Range("A4:A6").Value2 = $sourceTables.Range("D6:D8").Value2
-    $catalogSheet.Range("B4:B8").Value2 = $sourceTables.Range("D11:D15").Value2
-    $catalogSheet.Range("C4:C5").Value2 = $sourceTables.Range("D20:D21").Value2
-    $catalogSheet.Range("D4:D5").Value2 = $sourceTables.Range("E3:E4").Value2
-    $catalogSheet.Range("E4:E5").Value2 = $sourceTables.Range("D3:D4").Value2
-    $catalogSheet.Range("F4:F5").Value2 = $sourceTables.Range("E3:E4").Value2
-    $catalogSheet.Range("G4:G5").Value2 = $sourceTables.Range("F3:F4").Value2
-    $catalogSheet.Range("H4:H11").Value2 = $sourceTables.Range("D23:D30").Value2
-    $sourceBook.Close($false)
-    Release-ComObject $sourceTables
-    Release-ComObject $sourceBook
-    $sourceBook = $null
+    Write-ColumnValues $catalogSheet 1 @($catalogData.LoaiSo)
+    Write-ColumnValues $catalogSheet 2 @($catalogData.LoaiDat)
+    Write-ColumnValues $catalogSheet 3 @($catalogData.HinhThucSuDung)
+    Write-ColumnValues $catalogSheet 4 @($catalogData.CoQuanCapSo)
+    Write-ColumnValues $catalogSheet 5 @($catalogData.LoaiGiayTo)
+    Write-ColumnValues $catalogSheet 6 @($catalogData.NoiCapCC)
+    Write-ColumnValues $catalogSheet 7 @($catalogData.NhanDiaChi)
+    Write-ColumnValues $catalogSheet 8 @($catalogData.NguoiUyQuyen)
 
     $catalogSheet.Range("A1:L1").Merge()
     $catalogSheet.Range("A1").Value2 = "DANH MỤC TRA CỨU"
@@ -344,14 +350,14 @@ try {
     $catalogSheet.Range("N3:O3").Interior.Color = Color-Ref "FFF1B8"
 
     $catalogNamedRanges = @(
-        @{ Name = "DanhMuc_LoaiSo"; Formula = "=DanhMuc!`$A`$4:`$A`$6" },
-        @{ Name = "DanhMuc_LoaiDat"; Formula = "=DanhMuc!`$B`$4:`$B`$8" },
-        @{ Name = "DanhMuc_HinhThucSuDung"; Formula = "=DanhMuc!`$C`$4:`$C`$5" },
-        @{ Name = "DanhMuc_CoQuanCapSo"; Formula = "=DanhMuc!`$D`$4:`$D`$5" },
-        @{ Name = "DanhMuc_LoaiGiayTo"; Formula = "=DanhMuc!`$E`$4:`$E`$5" },
-        @{ Name = "DanhMuc_NoiCapCC"; Formula = "=DanhMuc!`$F`$4:`$F`$5" },
-        @{ Name = "DanhMuc_NhanDiaChi"; Formula = "=DanhMuc!`$G`$4:`$G`$5" },
-        @{ Name = "DanhMuc_NguoiUyQuyen"; Formula = "=DanhMuc!`$H`$4:`$H`$11" },
+        @{ Name = "DanhMuc_LoaiSo"; Formula = ("=DanhMuc!`$A`$4:`$A`${0}" -f ($catalogData.LoaiSo.Count + 3)) },
+        @{ Name = "DanhMuc_LoaiDat"; Formula = ("=DanhMuc!`$B`$4:`$B`${0}" -f ($catalogData.LoaiDat.Count + 3)) },
+        @{ Name = "DanhMuc_HinhThucSuDung"; Formula = ("=DanhMuc!`$C`$4:`$C`${0}" -f ($catalogData.HinhThucSuDung.Count + 3)) },
+        @{ Name = "DanhMuc_CoQuanCapSo"; Formula = ("=DanhMuc!`$D`$4:`$D`${0}" -f ($catalogData.CoQuanCapSo.Count + 3)) },
+        @{ Name = "DanhMuc_LoaiGiayTo"; Formula = ("=DanhMuc!`$E`$4:`$E`${0}" -f ($catalogData.LoaiGiayTo.Count + 3)) },
+        @{ Name = "DanhMuc_NoiCapCC"; Formula = ("=DanhMuc!`$F`$4:`$F`${0}" -f ($catalogData.NoiCapCC.Count + 3)) },
+        @{ Name = "DanhMuc_NhanDiaChi"; Formula = ("=DanhMuc!`$G`$4:`$G`${0}" -f ($catalogData.NhanDiaChi.Count + 3)) },
+        @{ Name = "DanhMuc_NguoiUyQuyen"; Formula = ("=DanhMuc!`$H`$4:`$H`${0}" -f ($catalogData.NguoiUyQuyen.Count + 3)) },
         @{ Name = "DanhMuc_SucChuaMau"; Formula = ("=DanhMuc!`$J`$4:`$L`${0}" -f ($capacityRows.Count + 3)) }
     )
     foreach ($namedRange in $catalogNamedRanges) {

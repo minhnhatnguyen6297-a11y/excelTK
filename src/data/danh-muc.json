@@ -1,0 +1,14 @@
+{
+  "LoaiSo": [
+    "Giấy chứng nhận quyền sử dụng đất, quyền sở hữu nhà ở và tài sản khác gắn liền với đất",
+    "Giấy chứng nhận quyền sử dụng đất, quyền sở hữu tài sản gắn liền với đất",
+    "Giấy chứng nhận quyền sử dụng đất"
+  ],
+  "LoaiDat": ["Đất ở tại đô thị", "Đất ở tại nông thôn", "Đất trồng cây lâu năm", "Đất nuôi trồng thủy sản", "Đất trồng lúa"],
+  "HinhThucSuDung": ["Sử dụng riêng", "Sử dụng chung"],
+  "CoQuanCapSo": ["Bộ Công an", "Cục cảnh sát quản lý hành chính về trật tự xã hội"],
+  "LoaiGiayTo": ["Căn cước", "Căn cước công dân"],
+  "NoiCapCC": ["Bộ Công an", "Cục cảnh sát quản lý hành chính về trật tự xã hội"],
+  "NhanDiaChi": ["Cư trú tại", "Thường trú tại"],
+  "NguoiUyQuyen": ["Anh Thành", "Chú Sơn", "Anh Tùng", "Chị Liễu", "Anh Hải", "Anh Quang", "Minh", "H"]
+}
