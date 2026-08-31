@@ -8,6 +8,25 @@
 >
 > Mọi nội dung dựa trên mô hình mã nhánh `1`/`1.4`/`1.4.4`, slot vai trò `.1/.2/.3/.4+`, cột `TrangThaiTN`/`QuanHe`, quan hệ `ChaID/MeID/VoChongID` đã bị SOT khai tử có chủ đích (xem SOT §16) và KHÔNG được đưa vào file này.
 
+## Cập nhật 31/08/2026 — các mục đã được đưa vào SOT
+
+SOT đã được cấu trúc lại thành tài liệu tổng chia mục theo flow. Những mục dưới đây **đã được quyết định** và chuyển vào SOT; phần mô tả cũ trong file này chỉ còn giá trị lịch sử:
+
+| Mục ở file này | Quyết định | Vị trí trong SOT |
+| --- | --- | --- |
+| §2.2 Vùng thông tin tài sản | Nhận, dạng phiếu dọc, 3 phiếu, đặt dưới vùng người trên `NhapLieu` | SOT §2.2, §10 |
+| §2.3 Mã kỹ thuật ẩn | Nhận: `TaiSanID` dạng `TS001`, ẩn | SOT §10.3 |
+| §4.2 Xuất Word an toàn | Nhận toàn bộ | SOT §13.5 |
+| §4.3 Placeholder kép | Nhận | SOT §13.3 |
+| §4.4 Quy tắc placeholder | Nhận | SOT §13.4 |
+| §5 Loại giấy tờ, nhãn địa chỉ, hậu tố tài sản | Nhận | SOT §14.2, §10.2 |
+| §6 Sức chứa template | Nhận, thành lỗi chặn xuất hai chiều | SOT §12.3 |
+| §9 câu 1, 3 | Chốt: một workbook là một hồ sơ, copy file mẫu; không có `HoSoID` | SOT §1 |
+| §9 câu 4, 5, 8, 9 | Chốt: hồ sơ hai bên là workbook riêng; workbook thừa kế không có cột `Ben` | SOT §15 |
+| §9 câu 7 | Chốt: hiển thị lỗi theo STT và họ tên, bấm để nhảy tới ô lỗi | SOT §12 |
+
+Vẫn **chưa** vào SOT: §1 (khối di sản, sở hữu, phân chia theo tỷ lệ), §2.4 sheet phụ mở rộng, §3 hồ sơ nhiều loại trong cùng file, §4.5 chèn bảng/ảnh/`TypeText` mở rộng, §7 danh sách lỗi workbook cũ, §9 câu 2, 6, 10, 11.
+
 ## 1. Di sản, sở hữu và phân chia tài sản
 
 SOT chỉ có checkbox `NhanDat` trên từng dòng người; SOT không có khối di sản, không có tỷ lệ phân chia, không có mô hình đồng chủ thứ 3 trở lên. Toàn bộ mục này SOT im lặng.

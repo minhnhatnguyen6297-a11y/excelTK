@@ -1,5 +1,9 @@
 # Tài sản, Word thật, hồ sơ A/B — Implementation Plan
 
+> **LỖI THỜI — KHÔNG THỰC THI (31/08/2026).**
+> Plan này khóa tài sản dạng bảng ngang `tblTaiSan` một-dòng-một-tài-sản trên sheet `TaiSan` riêng. SOT đã chốt ngược lại: **phiếu dọc, 3 phiếu, đặt dưới vùng người trên `NhapLieu`** (SOT §2.2, §10). Sheet `HoSo` riêng cũng bị thay bằng khối cuối `NhapLieu` (SOT §11).
+> Đọc `docs/specs/inheritance-branch-architecture.md` trước. Cần plan mới cho pha 1. Task 1 (quét placeholder) và Task 8–9 (workbook A/B) vẫn dùng lại được.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Từ bản chốt thừa kế v0.2.1, thêm sheet tài sản + dữ liệu hồ sơ, nối mẫu Word thật, rồi tạo workbook riêng cho hồ sơ chia hai bên A/B.
