@@ -101,7 +101,7 @@ Public Sub RefreshTaiSanTable()
             Next fieldOffset
         End If
     Next assetIndex
-    If wasProtected Then wsExport.Protect Password:=PROTECTION_PASSWORD, UserInterfaceOnly:=True
+    If wasProtected Then ProtectSheetStandard wsExport
 End Sub
 
 Private Function AssetInputRange(ByVal assetIndex As Long) As Range

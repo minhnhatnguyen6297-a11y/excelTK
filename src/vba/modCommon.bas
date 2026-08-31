@@ -232,13 +232,16 @@ Public Sub ApplyWorkbookProtection()
     Dim ws As Worksheet
 
     For Each ws In ThisWorkbook.Worksheets
-        On Error Resume Next
-        ws.Unprotect Password:=PROTECTION_PASSWORD
-        On Error GoTo 0
-
-        ws.Protect Password:=PROTECTION_PASSWORD, DrawingObjects:=True, _
-                   Contents:=True, Scenarios:=True, UserInterfaceOnly:=True, _
-                   AllowFiltering:=True
-        ws.EnableSelection = xlNoRestrictions
+        ProtectSheetStandard ws
     Next ws
+End Sub
+
+Public Sub ProtectSheetStandard(ByVal ws As Worksheet)
+    On Error Resume Next
+    ws.Unprotect Password:=PROTECTION_PASSWORD
+    On Error GoTo 0
+    ws.Protect Password:=PROTECTION_PASSWORD, DrawingObjects:=True, _
+               Contents:=True, Scenarios:=True, UserInterfaceOnly:=True, _
+               AllowFiltering:=True
+    ws.EnableSelection = xlNoRestrictions
 End Sub
