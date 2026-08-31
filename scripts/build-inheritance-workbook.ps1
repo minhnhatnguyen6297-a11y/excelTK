@@ -319,8 +319,8 @@ try {
         $catalogSheet.Name = "DanhMuc"
     }
     $peopleTable = $inputSheet.ListObjects.Item("tblNguoi")
-    $peopleTable.Resize($inputSheet.Range("A8:AN38"))
-    $peopleExtraHeaders = @("HoSoID", "NiemYet", "SoCongChung", "NguoiUyQuyen", "NguoiUyQuyen2", "MauWord", "MauWordPath", "SucChuaNguoi", "SucChuaTaiSan", "STTTaiSan", "TaiSanID", "DuLieuXuat", "KiemTra", "CanhBao", "XuatWord", "NgayCapSoGoc", "NgayCapSoTinh", "LoaiCC", "NoiCapCC", "NhanDiaChi")
+    $peopleTable.Resize($inputSheet.Range("A8:W38"))
+    $peopleExtraHeaders = @("LoaiCC", "NoiCapCC", "NhanDiaChi")
     for ($extraIndex = 0; $extraIndex -lt $peopleExtraHeaders.Count; $extraIndex++) {
         $inputSheet.Cells.Item(8, 21 + $extraIndex).Value2 = $peopleExtraHeaders[$extraIndex]
     }
@@ -494,7 +494,6 @@ try {
     $inputSheet.Columns.Item("S").ColumnWidth = 16
     $inputSheet.Columns.Item("T").ColumnWidth = 16
     $inputSheet.Range("J:W").EntireColumn.Hidden = $true
-    $inputSheet.Range("X:AN").EntireColumn.Hidden = $true
 
     $inputSheet.Range("C9:D38").NumberFormat = "@"
     $inputSheet.Range("F9:F38").NumberFormat = "@"

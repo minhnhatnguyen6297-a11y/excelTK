@@ -8,6 +8,8 @@
   "HinhThucSuDung": ["Sử dụng riêng", "Sử dụng chung"],
   "CoQuanCapSo": ["Bộ Công an", "Cục cảnh sát quản lý hành chính về trật tự xã hội"],
   "LoaiGiayTo": ["Căn cước", "Căn cước công dân"],
+  "LoaiCCTruocMoc": "Căn cước công dân",
+  "LoaiCCTuMoc": "Căn cước",
   "NoiCapCC": ["Bộ Công an", "Cục cảnh sát quản lý hành chính về trật tự xã hội"],
   "NhanDiaChi": ["Cư trú tại", "Thường trú tại"],
   "NguoiUyQuyen": ["Anh Thành", "Chú Sơn", "Anh Tùng", "Chị Liễu", "Anh Hải", "Anh Quang", "Minh", "H"]
