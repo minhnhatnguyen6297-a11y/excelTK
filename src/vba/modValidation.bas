@@ -32,7 +32,6 @@ Public Function ValidateWorkbook(Optional ByVal showResults As Boolean = True) A
     Dim key As Variant
     Dim currentId As String
     Dim visited As Object
-    Dim capacity As Long
     Dim personCount As Long
     Dim assetIndex As Long
     Dim hasAssetData As Boolean
@@ -169,12 +168,7 @@ Public Function ValidateWorkbook(Optional ByVal showResults As Boolean = True) A
         End If
     Next key
 
-    capacity = SafeLong(ThisWorkbook.Names("SucChuaNguoi").RefersToRange.Value2, 100)
-    If capacity > 0 And personCount > capacity Then
-        AddIssue "Lỗi", "TEMPLATE_CAPACITY", 0, vbNullString, _
-                 "Có " & CStr(personCount) & " người nhưng template chỉ cho phép " & _
-                 CStr(capacity) & " người.", ThisWorkbook.Worksheets(SHEET_INPUT).Range("B4")
-    End If
+    ValidateTemplateCapacity personCount
 
     If Len(PersonName(2)) = 0 Then
         AddIssue "Cảnh báo", "SECOND_OWNER_EMPTY", 2, vbNullString, _
@@ -222,6 +216,45 @@ FinishValidation:
         wsCheck.Range("A1").Select
     End If
 End Function
+
+Private Sub ValidateTemplateCapacity(ByVal personCount As Long)
+    Dim catalog As Worksheet
+    Dim templateName As String
+    Dim rowIndex As Long
+    Dim peopleCapacity As Long
+    Dim assetCapacity As Long
+    Dim assetCount As Long
+    Dim found As Boolean
+    templateName = Dir$(GetConfigText("DuongDanMauWord"))
+    Set catalog = ThisWorkbook.Worksheets("DanhMuc")
+    For rowIndex = 4 To catalog.Cells(catalog.Rows.Count, 10).End(xlUp).Row
+        If CStr(catalog.Cells(rowIndex, 10).Value2) = templateName Then
+            peopleCapacity = SafeLong(catalog.Cells(rowIndex, 11).Value2, 0)
+            assetCapacity = SafeLong(catalog.Cells(rowIndex, 12).Value2, 0)
+            found = True
+            Exit For
+        End If
+    Next rowIndex
+    If Not found Or peopleCapacity <= 0 Or assetCapacity <= 0 Then
+        AddIssue "Lỗi", "TEMPLATE_CAPACITY_UNKNOWN", 0, vbNullString, _
+                 "Không xác định được sức chứa của mẫu đang chọn.", ThisWorkbook.Worksheets("CauHinh").Range("B8")
+        Exit Sub
+    End If
+    assetCount = 0
+    For rowIndex = 1 To ASSET_CARD_COUNT
+        If TaiSanHasData(rowIndex) Then assetCount = assetCount + 1
+    Next rowIndex
+    If personCount > peopleCapacity Then
+        AddIssue "Lỗi", "TEMPLATE_PEOPLE_CAPACITY", 0, vbNullString, _
+                 "Mẫu chỉ chứa được " & CStr(peopleCapacity) & " người; hiện có " & CStr(personCount) & ".", _
+                 ThisWorkbook.Worksheets(SHEET_INPUT).Range("B4")
+    End If
+    If assetCount > assetCapacity Then
+        AddIssue "Lỗi", "TEMPLATE_ASSET_CAPACITY", 0, vbNullString, _
+                 "Mẫu chỉ chứa được " & CStr(assetCapacity) & " phiếu tài sản; hiện có " & CStr(assetCount) & ".", _
+                 ThisWorkbook.Worksheets(SHEET_INPUT).Range("B40")
+    End If
+End Sub
 
 Private Sub ValidateAssetCard(ByVal assetIndex As Long, ByRef hasAnyAsset As Boolean)
     Dim anyField As Boolean

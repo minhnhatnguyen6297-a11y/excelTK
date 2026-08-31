@@ -271,7 +271,7 @@ $baseOperations = @(
     @{ command = "set"; path = "/CauHinh/A4"; props = @{ value = "BangMauHangTK" } },
     @{ command = "set"; path = "/CauHinh/A5"; props = @{ value = "PhienBanCauTruc" } },
     @{ command = "set"; path = "/CauHinh/A6"; props = @{ value = "NguoiIDTiepTheo" } },
-    @{ command = "set"; path = "/CauHinh/A7"; props = @{ value = "SucChuaNguoi" } },
+    @{ command = "set"; path = "/CauHinh/A7"; props = @{ value = "SucChuaNguoiMau (tra DanhMuc)" } },
     @{ command = "set"; path = "/CauHinh/A8"; props = @{ value = "DuongDanMauWord" } },
     @{ command = "set"; path = "/CauHinh/A9"; props = @{ value = "ThuMucXuat" } },
     @{ command = "set"; path = "/CauHinh/A10"; props = @{ value = "TaiSanIDTiepTheo" } },
@@ -319,9 +319,7 @@ try {
         $catalogSheet = $workbook.Worksheets.Item("DanhMuc")
     }
     catch {
-        $lastSheet = $workbook.Worksheets.Item($workbook.Worksheets.Count)
-        $catalogSheet = $workbook.Worksheets.Add($null, $lastSheet)
-        Release-ComObject $lastSheet
+        $catalogSheet = $workbook.Worksheets.Add()
         $catalogSheet.Name = "DanhMuc"
     }
     $peopleTable = $inputSheet.ListObjects.Item("tblNguoi")
@@ -704,7 +702,7 @@ try {
     $configSheet.Range("B4").Value2 = "PALETTE_B_TUONG_PHAN"
     $configSheet.Range("B5").Value2 = "2.0.0"
     $configSheet.Range("B6").Value2 = 1
-    $configSheet.Range("B7").Value2 = 100
+    $configSheet.Range("B7").ClearContents()
     $configSheet.Range("B8").NumberFormat = "@"
     $configSheet.Range("B8").Value = [string]$testTemplate
     $configSheet.Range("B9").NumberFormat = "@"
@@ -720,7 +718,6 @@ try {
     $workbook.Names.Add("BangMauHangTK", '=CauHinh!$B$4') | Out-Null
     $workbook.Names.Add("PhienBanCauTruc", '=CauHinh!$B$5') | Out-Null
     $workbook.Names.Add("NguoiIDTiepTheo", '=CauHinh!$B$6') | Out-Null
-    $workbook.Names.Add("SucChuaNguoi", '=CauHinh!$B$7') | Out-Null
     $workbook.Names.Add("DuongDanMauWord", '=CauHinh!$B$8') | Out-Null
     $workbook.Names.Add("ThuMucXuat", '=CauHinh!$B$9') | Out-Null
     $workbook.Names.Add("TaiSanIDTiepTheo", '=CauHinh!$B$10') | Out-Null
@@ -794,6 +791,7 @@ try {
     $excel.EnableEvents = $false
     $testBook = $excel.Workbooks.Open($testWorkbook)
     $testInput = $testBook.Worksheets.Item("NhapLieu")
+    $testConfig = $testBook.Worksheets.Item("CauHinh")
     $testTable = $testInput.ListObjects.Item("tblNguoi")
     $testInput.Unprotect("HoSoTK_MVP_2026")
 
@@ -932,9 +930,17 @@ try {
     # Cấu hình tối thiểu cho khối thông tin phụ khi mẫu thử có placeholder bắt buộc.
     $testInput.Range("C103").Value2 = "Có"
     $testInput.Range("C105").Value2 = [string]$catalogData.NguoiUyQuyen[0]
+    $testConfig.Unprotect("HoSoTK_MVP_2026")
+    $testCatalog = $testBook.Worksheets.Item("DanhMuc")
+    $testCatalog.Unprotect("HoSoTK_MVP_2026")
+    $testCapacityRow = $testCatalog.Cells($testCatalog.Rows.Count, 10).End(-4162).Row + 1
+    $testCatalog.Cells.Item($testCapacityRow, 10).Value2 = [System.IO.Path]::GetFileName($testTemplate)
+    $testCatalog.Cells.Item($testCapacityRow, 11).Value2 = 100
+    $testCatalog.Cells.Item($testCapacityRow, 12).Value2 = 3
 
     $isValid = [bool]$excel.Run($macroPrefix + "ValidateWorkbook", $false)
     if (-not $isValid) { throw "Bộ dữ liệu giả không vượt qua validation." }
+    [void]$excel.Run($macroPrefix + "ApplyWorkbookProtection")
     [void]$excel.Run($macroPrefix + "BuildExportData")
     $exportSucceeded = [bool]$excel.Run($macroPrefix + "RunWordExport", $true)
     if (-not $exportSucceeded) { throw "Xuất Word thử thất bại." }
