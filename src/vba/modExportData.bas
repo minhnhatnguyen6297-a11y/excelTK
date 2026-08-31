@@ -50,19 +50,20 @@ Private Function WriteHoSoSection(ByVal ws As Worksheet, ByVal startRow As Long)
 End Function
 
 Public Function LegacySlotValue(ByVal slot As Long, ByVal fieldName As String) As String
-    Dim rowIndex As Long, lo As ListObject, cellValue As Variant
+    Dim rowIndex As Long, cellValue As Variant
+    If fieldName = "Nam chet" Then slot = 1
+    If fieldName = "Nam chet 2" Then slot = 2
     rowIndex = SlotPersonRow(slot)
     If rowIndex = 0 Then Exit Function
-    Set lo = PeopleTable()
     Select Case fieldName
         Case "Ten": cellValue = PersonCell(rowIndex, COL_NAME).Value2
         Case "Nam sinh": cellValue = PersonCell(rowIndex, COL_BIRTH).Value2
         Case "CCCD": cellValue = PersonCell(rowIndex, COL_DOCNO).Value2
         Case "Ngay cap": cellValue = PersonCell(rowIndex, COL_ISSUED).Value2
         Case "Dia chi": cellValue = PersonCell(rowIndex, COL_ADDRESS).Value2
-        Case "Loai CC": cellValue = PersonCell(rowIndex, "LoaiCC").Value2
-        Case "Noi cap CC": cellValue = PersonCell(rowIndex, "NoiCapCC").Value2
-        Case "Thuong tru": cellValue = PersonCell(rowIndex, "NhanDiaChi").Value2
+        Case "Loai CC": cellValue = PersonCell(rowIndex, COL_LOAI_CC).Value2
+        Case "Noi cap CC": cellValue = PersonCell(rowIndex, COL_NOI_CAP_CC).Value2
+        Case "Thuong tru": cellValue = PersonCell(rowIndex, COL_NHAN_DIA_CHI).Value2
         Case "Nam chet": cellValue = PersonCell(rowIndex, COL_DEATH).Value2
         Case "Nam chet 2": cellValue = PersonCell(rowIndex, COL_DEATH).Value2
         Case Else: Exit Function
@@ -71,20 +72,29 @@ Public Function LegacySlotValue(ByVal slot As Long, ByVal fieldName As String) A
 End Function
 
 Private Function SlotPersonRow(ByVal slot As Long) As Long
-    Dim lo As ListObject, r As Long, ownerCount As Long, otherCount As Long
+    Dim lo As ListObject, r As Long, i As Long, j As Long, ownerCount As Long, otherCount As Long
+    Dim owners() As Long, others() As Long, swapRow As Long
     Set lo = PeopleTable()
     If lo.DataBodyRange Is Nothing Then Exit Function
     For r = 1 To lo.DataBodyRange.Rows.Count
         If PersonHasData(r) Then
-            If SafeBool(PersonCell(r, COL_OWNER).Value2) Then
-                ownerCount = ownerCount + 1
-                If slot = ownerCount And slot <= 2 Then SlotPersonRow = r: Exit Function
-            ElseIf slot > 2 Then
-                otherCount = otherCount + 1
-                If otherCount = slot - 2 Then SlotPersonRow = r: Exit Function
-            End If
+            If SafeBool(PersonCell(r, COL_OWNER).Value2) Then ownerCount = ownerCount + 1 Else otherCount = otherCount + 1
         End If
     Next r
+    If ownerCount > 0 Then ReDim owners(1 To ownerCount)
+    If otherCount > 0 Then ReDim others(1 To otherCount)
+    ownerCount = 0: otherCount = 0
+    For r = 1 To lo.DataBodyRange.Rows.Count
+        If PersonHasData(r) Then
+            If SafeBool(PersonCell(r, COL_OWNER).Value2) Then ownerCount = ownerCount + 1: owners(ownerCount) = r Else otherCount = otherCount + 1: others(otherCount) = r
+        End If
+    Next r
+    For i = 1 To ownerCount - 1: For j = i + 1 To ownerCount: If SafeLong(PersonCell(owners(j), COL_STT).Value2, 0) < SafeLong(PersonCell(owners(i), COL_STT).Value2, 0) Then swapRow = owners(i): owners(i) = owners(j): owners(j) = swapRow
+    Next j, i
+    For i = 1 To otherCount - 1: For j = i + 1 To otherCount: If SafeLong(PersonCell(others(j), COL_STT).Value2, 0) < SafeLong(PersonCell(others(i), COL_STT).Value2, 0) Then swapRow = others(i): others(i) = others(j): others(j) = swapRow
+    Next j, i
+    If slot <= ownerCount And slot <= 2 Then SlotPersonRow = owners(slot)
+    If slot > 2 And slot - 2 <= otherCount Then SlotPersonRow = others(slot - 2)
 End Function
 
 Private Function WriteGroupSection(ByVal wsExport As Worksheet, ByVal startRow As Long, _
