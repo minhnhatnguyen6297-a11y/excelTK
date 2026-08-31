@@ -309,7 +309,15 @@ try {
     $configSheet = $workbook.Worksheets.Item("CauHinh")
     $checkSheet = $workbook.Worksheets.Item("KiemTra")
     $exportSheet = $workbook.Worksheets.Item("XuatAn")
-    $catalogSheet = $workbook.Worksheets.Item("DanhMuc")
+    try {
+        $catalogSheet = $workbook.Worksheets.Item("DanhMuc")
+    }
+    catch {
+        $lastSheet = $workbook.Worksheets.Item($workbook.Worksheets.Count)
+        $catalogSheet = $workbook.Worksheets.Add($null, $lastSheet)
+        Release-ComObject $lastSheet
+        $catalogSheet.Name = "DanhMuc"
+    }
     $peopleTable = $inputSheet.ListObjects.Item("tblNguoi")
 
     Write-ColumnValues $catalogSheet 1 @($catalogData.LoaiSo)

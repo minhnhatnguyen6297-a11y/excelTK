@@ -15,6 +15,7 @@ Public Sub BuildExportData()
     nextRow = WriteGroupSection(wsExport, nextRow, "NguoiNhanDat")
     nextRow = WriteGroupSection(wsExport, nextRow, "CacNhomTuChoi")
     nextRow = WriteGroupSection(wsExport, nextRow, "CayNhanh")
+    RefreshTaiSanTable
 
     wsExport.Columns("A:V").AutoFit
 End Sub

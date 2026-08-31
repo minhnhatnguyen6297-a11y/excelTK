@@ -6,6 +6,7 @@ Public Const SHEET_CONFIG As String = "CauHinh"
 Public Const SHEET_CHECK As String = "KiemTra"
 Public Const SHEET_EXPORT As String = "XuatAn"
 Public Const TABLE_PEOPLE As String = "tblNguoi"
+Public Const TABLE_ASSET_EXPORT As String = "tblTaiSan"
 
 Public Const ASSET_SECTION_ROW As Long = 40
 Public Const ASSET_FIRST_CARD_ROW As Long = 41
