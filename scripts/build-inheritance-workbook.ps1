@@ -319,6 +319,11 @@ try {
         $catalogSheet.Name = "DanhMuc"
     }
     $peopleTable = $inputSheet.ListObjects.Item("tblNguoi")
+    $peopleTable.Resize($inputSheet.Range("A8:AN38"))
+    $peopleExtraHeaders = @("HoSoID", "NiemYet", "SoCongChung", "NguoiUyQuyen", "NguoiUyQuyen2", "MauWord", "MauWordPath", "SucChuaNguoi", "SucChuaTaiSan", "STTTaiSan", "TaiSanID", "DuLieuXuat", "KiemTra", "CanhBao", "XuatWord", "NgayCapSoGoc", "NgayCapSoTinh", "LoaiCC", "NoiCapCC", "NhanDiaChi")
+    for ($extraIndex = 0; $extraIndex -lt $peopleExtraHeaders.Count; $extraIndex++) {
+        $inputSheet.Cells.Item(8, 21 + $extraIndex).Value2 = $peopleExtraHeaders[$extraIndex]
+    }
 
     Write-ColumnValues $catalogSheet 1 @($catalogData.LoaiSo)
     Write-ColumnValues $catalogSheet 2 @($catalogData.LoaiDat)
@@ -368,6 +373,10 @@ try {
         @{ Name = "DanhMuc_NguoiUyQuyen"; Formula = ("=DanhMuc!`$H`$4:`$H`${0}" -f ($catalogData.NguoiUyQuyen.Count + 3)) },
         @{ Name = "DanhMuc_SucChuaMau"; Formula = ("=DanhMuc!`$J`$4:`$L`${0}" -f ($capacityRows.Count + 3)) }
     )
+    $loaiCCBeforeIndex = [array]::IndexOf([string[]]$catalogData.LoaiGiayTo, [string]$catalogData.LoaiCCTruocMoc) + 4
+    $loaiCCFromIndex = [array]::IndexOf([string[]]$catalogData.LoaiGiayTo, [string]$catalogData.LoaiCCTuMoc) + 4
+    $catalogNamedRanges += @{ Name = "DanhMuc_LoaiCCTruocMoc"; Formula = ("=DanhMuc!`$E`${0}" -f $loaiCCBeforeIndex) }
+    $catalogNamedRanges += @{ Name = "DanhMuc_LoaiCCTuMoc"; Formula = ("=DanhMuc!`$E`${0}" -f $loaiCCFromIndex) }
     foreach ($namedRange in $catalogNamedRanges) {
         $workbook.Names.Add($namedRange.Name, $namedRange.Formula) | Out-Null
     }
@@ -440,7 +449,7 @@ try {
 
     $dataRange = $peopleTable.DataBodyRange
     for ($row = 1; $row -le $dataRange.Rows.Count; $row++) {
-        $dataRange.Cells.Item($row, 8).Value2 = if ($row -le 2) { 0 } else { 1 }
+        if ($row -le 2) { $dataRange.Cells.Item($row, 8).Value2 = 0 } else { $dataRange.Cells.Item($row, 8).Value2 = 1 }
         $dataRange.Cells.Item($row, 9).Value2 = 0
         $dataRange.Cells.Item($row, 10).ClearContents()
         $dataRange.Cells.Item($row, 13).Value2 = $false
@@ -485,6 +494,7 @@ try {
     $inputSheet.Columns.Item("S").ColumnWidth = 16
     $inputSheet.Columns.Item("T").ColumnWidth = 16
     $inputSheet.Range("J:W").EntireColumn.Hidden = $true
+    $inputSheet.Range("X:AN").EntireColumn.Hidden = $true
 
     $inputSheet.Range("C9:D38").NumberFormat = "@"
     $inputSheet.Range("F9:F38").NumberFormat = "@"
@@ -745,6 +755,7 @@ try {
     Add-StandardModule $vbProject "modNgayThang" (Join-Path $vbaRoot "modNgayThang.bas")
     Add-StandardModule $vbProject "modNguoi" (Join-Path $vbaRoot "modNguoi.bas")
     Add-StandardModule $vbProject "modTaiSan" (Join-Path $vbaRoot "modTaiSan.bas")
+    Add-StandardModule $vbProject "modGiayTo" (Join-Path $vbaRoot "modGiayTo.bas")
     Add-StandardModule $vbProject "modHangTKNhanh" (Join-Path $vbaRoot "modHangTKNhanh.bas")
     Add-StandardModule $vbProject "modValidation" (Join-Path $vbaRoot "modValidation.bas")
     Add-StandardModule $vbProject "modExportData" (Join-Path $vbaRoot "modExportData.bas")

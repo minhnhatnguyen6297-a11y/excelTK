@@ -45,6 +45,9 @@ Public Const COL_DEATH_RAW As String = "NgayChetGoc"
 Public Const COL_DEATH_CALC As String = "NgayChetTinh"
 Public Const COL_ISSUED_RAW As String = "NgayCapGoc"
 Public Const COL_ISSUED_CALC As String = "NgayCapTinh"
+Public Const COL_LOAI_CC As String = "LoaiCC"
+Public Const COL_NOI_CAP_CC As String = "NoiCapCC"
+Public Const COL_NHAN_DIA_CHI As String = "NhanDiaChi"
 
 Public Const PROTECTION_PASSWORD As String = "HoSoTK_MVP_2026"
 

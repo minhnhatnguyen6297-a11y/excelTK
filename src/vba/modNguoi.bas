@@ -169,6 +169,9 @@ Public Sub HandlePeopleChange(ByVal changedRange As Range)
 
         deathWasChanged = Not Intersect(affected, PersonCell(rowIndex, COL_DEATH)) Is Nothing
         receiveWasChanged = Not Intersect(affected, PersonCell(rowIndex, COL_RECEIVE)) Is Nothing
+        If Not Intersect(affected, PersonCell(rowIndex, COL_ISSUED)) Is Nothing Then
+            UpdateGiayToForRow rowIndex
+        End If
         If deathWasChanged Or receiveWasChanged Then
             ResolveDeathReceiveConflict rowIndex, deathWasChanged
         End If
