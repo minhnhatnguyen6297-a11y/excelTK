@@ -16,9 +16,76 @@ Public Sub BuildExportData()
     nextRow = WriteGroupSection(wsExport, nextRow, "CacNhomTuChoi")
     nextRow = WriteGroupSection(wsExport, nextRow, "CayNhanh")
     RefreshTaiSanTable
+    nextRow = WriteAssetSection(wsExport, nextRow)
+    nextRow = WriteHoSoSection(wsExport, nextRow)
 
     wsExport.Columns("A:V").AutoFit
 End Sub
+
+Private Function WriteAssetSection(ByVal ws As Worksheet, ByVal startRow As Long) As Long
+    Dim lo As ListObject, r As Long, c As Long
+    Set lo = ThisWorkbook.Worksheets(SHEET_EXPORT).ListObjects(TABLE_ASSET_EXPORT)
+    ws.Cells(startRow, 1).Value2 = "TaiSan"
+    For c = 1 To lo.ListColumns.Count: ws.Cells(startRow + 1, c).Value2 = lo.ListColumns(c).Name: Next c
+    If Not lo.DataBodyRange Is Nothing Then
+        For r = 1 To lo.DataBodyRange.Rows.Count
+            For c = 1 To lo.ListColumns.Count: ws.Cells(startRow + 1 + r, c).Value2 = lo.DataBodyRange.Cells(r, c).Value2: Next c
+        Next r
+        WriteAssetSection = startRow + 3 + lo.DataBodyRange.Rows.Count
+    Else
+        WriteAssetSection = startRow + 3
+    End If
+End Function
+
+Private Function WriteHoSoSection(ByVal ws As Worksheet, ByVal startRow As Long) As Long
+    Dim fields As Variant, i As Long
+    fields = Array("NiemYet", "SoCongChung", "NguoiUyQuyen", "NguoiUyQuyen2")
+    ws.Cells(startRow, 1).Value2 = "HoSo"
+    For i = 0 To UBound(fields)
+        ws.Cells(startRow + 1, i + 1).Value2 = fields(i)
+        ws.Cells(startRow + 2, i + 1).NumberFormat = "@"
+        ws.Cells(startRow + 2, i + 1).Value2 = ThisWorkbook.Worksheets(SHEET_INPUT).Cells(103 + i, 3).Value2
+    Next i
+    WriteHoSoSection = startRow + 4
+End Function
+
+Public Function LegacySlotValue(ByVal slot As Long, ByVal fieldName As String) As String
+    Dim rowIndex As Long, lo As ListObject, cellValue As Variant
+    rowIndex = SlotPersonRow(slot)
+    If rowIndex = 0 Then Exit Function
+    Set lo = PeopleTable()
+    Select Case fieldName
+        Case "Ten": cellValue = PersonCell(rowIndex, COL_NAME).Value2
+        Case "Nam sinh": cellValue = PersonCell(rowIndex, COL_BIRTH).Value2
+        Case "CCCD": cellValue = PersonCell(rowIndex, COL_DOCNO).Value2
+        Case "Ngay cap": cellValue = PersonCell(rowIndex, COL_ISSUED).Value2
+        Case "Dia chi": cellValue = PersonCell(rowIndex, COL_ADDRESS).Value2
+        Case "Loai CC": cellValue = PersonCell(rowIndex, "LoaiCC").Value2
+        Case "Noi cap CC": cellValue = PersonCell(rowIndex, "NoiCapCC").Value2
+        Case "Thuong tru": cellValue = PersonCell(rowIndex, "NhanDiaChi").Value2
+        Case "Nam chet": cellValue = PersonCell(rowIndex, COL_DEATH).Value2
+        Case "Nam chet 2": cellValue = PersonCell(rowIndex, COL_DEATH).Value2
+        Case Else: Exit Function
+    End Select
+    If Not IsError(cellValue) And Not IsEmpty(cellValue) Then LegacySlotValue = CStr(cellValue)
+End Function
+
+Private Function SlotPersonRow(ByVal slot As Long) As Long
+    Dim lo As ListObject, r As Long, ownerCount As Long, otherCount As Long
+    Set lo = PeopleTable()
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    For r = 1 To lo.DataBodyRange.Rows.Count
+        If PersonHasData(r) Then
+            If SafeBool(PersonCell(r, COL_OWNER).Value2) Then
+                ownerCount = ownerCount + 1
+                If slot = ownerCount And slot <= 2 Then SlotPersonRow = r: Exit Function
+            ElseIf slot > 2 Then
+                otherCount = otherCount + 1
+                If otherCount = slot - 2 Then SlotPersonRow = r: Exit Function
+            End If
+        End If
+    Next r
+End Function
 
 Private Function WriteGroupSection(ByVal wsExport As Worksheet, ByVal startRow As Long, _
                                    ByVal groupName As String) As Long
