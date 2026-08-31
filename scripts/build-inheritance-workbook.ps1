@@ -13,6 +13,7 @@ if (-not (Test-Path -LiteralPath $officeCli)) {
 
 $workspace = (Resolve-Path -LiteralPath $WorkspaceRoot).Path
 $sourceWorkbook = Join-Path $workspace "templates\excel\Dữ liệu thừa kế (2).xlsb"
+$placeholderReport = Join-Path $workspace "docs\reference\word-placeholders-2026-08-31.md"
 $vbaRoot = Join-Path $workspace "src\vba"
 $outputDir = Join-Path $workspace "output\workbook-dev"
 $wordOutputDir = Join-Path $workspace "output\word-test"
@@ -159,8 +160,55 @@ function Create-QaCopy {
     }
 }
 
+function Get-WordCapacityRows {
+    param([string]$ReportPath)
+
+    $lines = Get-Content -LiteralPath $ReportPath -Encoding UTF8
+    $rows = @()
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex] -notmatch '^\| (.+?) \| [^|]+ \| [^|]+ \| (\d+) \| (\d+) \| (.+?) \|$') {
+            continue
+        }
+
+        $templateName = $matches[1]
+        $assetText = $matches[4]
+        $sectionStart = -1
+        for ($candidate = 0; $candidate -lt $lines.Count; $candidate++) {
+            if ($lines[$candidate] -eq "## $templateName") {
+                $sectionStart = $candidate
+                break
+            }
+        }
+
+        $peopleCapacity = 0
+        if ($sectionStart -ge 0) {
+            for ($detailIndex = $sectionStart + 1; $detailIndex -lt $lines.Count; $detailIndex++) {
+                if ($lines[$detailIndex] -match '^## ') { break }
+                $nameMatches = [regex]::Matches($lines[$detailIndex], '\[Tên (\d+)\]')
+                foreach ($nameMatch in $nameMatches) {
+                    $peopleCapacity = [Math]::Max($peopleCapacity, [int]$nameMatch.Groups[1].Value)
+                }
+            }
+        }
+
+        $assetCapacity = 0
+        foreach ($assetMatch in [regex]::Matches($assetText, '(\d+)')) {
+            $assetCapacity = [Math]::Max($assetCapacity, [int]$assetMatch.Groups[1].Value)
+        }
+        $rows += [pscustomobject]@{
+            TemplateName = $templateName
+            SucChuaNguoi = $peopleCapacity
+            SucChuaTaiSan = $assetCapacity
+        }
+    }
+    return $rows
+}
+
 if (-not (Test-Path -LiteralPath $sourceWorkbook)) {
     throw "Không tìm thấy workbook nguồn: $sourceWorkbook"
+}
+if (-not (Test-Path -LiteralPath $placeholderReport)) {
+    throw "Không tìm thấy báo cáo placeholder để dựng sức chứa mẫu: $placeholderReport"
 }
 
 $sourceHashBefore = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourceWorkbook).Hash
@@ -216,6 +264,7 @@ $baseOperations = @(
 )
 Invoke-OfficeCliBatch -FilePath $baseWorkbook -Operations $baseOperations
 Invoke-OfficeCli @("add", $baseWorkbook, "/NhapLieu", "--type", "table", "--prop", "ref=A8:T38", "--prop", "name=tblNguoi", "--prop", "displayName=tblNguoi", "--prop", "style=light1", "--prop", "showRowStripes=false")
+Invoke-OfficeCli @("add", $baseWorkbook, "/", "--type", "sheet", "--prop", "name=DanhMuc")
 Invoke-OfficeCli @("close", $baseWorkbook)
 
 Invoke-OfficeCli @("create", $testTemplate)
@@ -234,6 +283,7 @@ Invoke-OfficeCli @("validate", $testTemplate)
 $excel = $null
 $workbook = $null
 $testBook = $null
+$sourceBook = $null
 try {
     $excel = New-Object -ComObject Excel.Application
     $excel.Visible = $false
@@ -247,7 +297,77 @@ try {
     $configSheet = $workbook.Worksheets.Item("CauHinh")
     $checkSheet = $workbook.Worksheets.Item("KiemTra")
     $exportSheet = $workbook.Worksheets.Item("XuatAn")
+    $catalogSheet = $workbook.Worksheets.Item("DanhMuc")
     $peopleTable = $inputSheet.ListObjects.Item("tblNguoi")
+
+    $sourceBook = $excel.Workbooks.Open($sourceWorkbook, 0, $true)
+    $sourceTables = $sourceBook.Worksheets.Item("Tables")
+    $catalogSheet.Range("A4:A6").Value2 = $sourceTables.Range("D6:D8").Value2
+    $catalogSheet.Range("B4:B8").Value2 = $sourceTables.Range("D11:D15").Value2
+    $catalogSheet.Range("C4:C5").Value2 = $sourceTables.Range("D20:D21").Value2
+    $catalogSheet.Range("D4:D5").Value2 = $sourceTables.Range("E3:E4").Value2
+    $catalogSheet.Range("E4:E5").Value2 = $sourceTables.Range("D3:D4").Value2
+    $catalogSheet.Range("F4:F5").Value2 = $sourceTables.Range("E3:E4").Value2
+    $catalogSheet.Range("G4:G5").Value2 = $sourceTables.Range("F3:F4").Value2
+    $catalogSheet.Range("H4:H11").Value2 = $sourceTables.Range("D23:D30").Value2
+    $sourceBook.Close($false)
+    Release-ComObject $sourceTables
+    Release-ComObject $sourceBook
+    $sourceBook = $null
+
+    $catalogSheet.Range("A1:L1").Merge()
+    $catalogSheet.Range("A1").Value2 = "DANH MỤC TRA CỨU"
+    $catalogSheet.Range("A1:L1").Font.Name = "Arial"
+    $catalogSheet.Range("A1:L1").Font.Bold = $true
+    $catalogSheet.Range("A1:L1").Font.Color = Color-Ref "FFFFFF"
+    $catalogSheet.Range("A1:L1").Interior.Color = Color-Ref "304F78"
+    $catalogHeaders = @("Loại sổ", "Loại đất", "Hình thức sử dụng", "Cơ quan cấp sổ", "Loại giấy tờ", "Nơi cấp CC", "Nhãn địa chỉ", "Người ủy quyền")
+    for ($headerIndex = 0; $headerIndex -lt $catalogHeaders.Count; $headerIndex++) {
+        $catalogSheet.Cells.Item(3, $headerIndex + 1).Value2 = [string]$catalogHeaders[$headerIndex]
+    }
+    $catalogSheet.Range("A3:H3").Font.Bold = $true
+    $catalogSheet.Range("A3:H3").Interior.Color = Color-Ref "D8EBFF"
+
+    $capacityRows = Get-WordCapacityRows -ReportPath $placeholderReport
+    $catalogSheet.Range("J3").Value2 = "TenMau"
+    $catalogSheet.Range("K3").Value2 = "SucChuaNguoi"
+    $catalogSheet.Range("L3").Value2 = "SucChuaTaiSan"
+    for ($capacityIndex = 0; $capacityIndex -lt $capacityRows.Count; $capacityIndex++) {
+        $capacityRow = $capacityIndex + 4
+        $catalogSheet.Cells.Item($capacityRow, 10).Value2 = [string]$capacityRows[$capacityIndex].TemplateName
+        $catalogSheet.Cells.Item($capacityRow, 11).Value2 = [int]$capacityRows[$capacityIndex].SucChuaNguoi
+        $catalogSheet.Cells.Item($capacityRow, 12).Value2 = [int]$capacityRows[$capacityIndex].SucChuaTaiSan
+    }
+    $catalogSheet.Range("N3").Value2 = "Tờ bản đồ 2025"
+    $catalogSheet.Range("O3").Value2 = "Sáp nhập thôn"
+    $catalogSheet.Range("N3:O3").Font.Bold = $true
+    $catalogSheet.Range("N3:O3").Interior.Color = Color-Ref "FFF1B8"
+
+    $catalogNamedRanges = @(
+        @{ Name = "DanhMuc_LoaiSo"; Formula = "=DanhMuc!`$A`$4:`$A`$6" },
+        @{ Name = "DanhMuc_LoaiDat"; Formula = "=DanhMuc!`$B`$4:`$B`$8" },
+        @{ Name = "DanhMuc_HinhThucSuDung"; Formula = "=DanhMuc!`$C`$4:`$C`$5" },
+        @{ Name = "DanhMuc_CoQuanCapSo"; Formula = "=DanhMuc!`$D`$4:`$D`$5" },
+        @{ Name = "DanhMuc_LoaiGiayTo"; Formula = "=DanhMuc!`$E`$4:`$E`$5" },
+        @{ Name = "DanhMuc_NoiCapCC"; Formula = "=DanhMuc!`$F`$4:`$F`$5" },
+        @{ Name = "DanhMuc_NhanDiaChi"; Formula = "=DanhMuc!`$G`$4:`$G`$5" },
+        @{ Name = "DanhMuc_NguoiUyQuyen"; Formula = "=DanhMuc!`$H`$4:`$H`$11" },
+        @{ Name = "DanhMuc_SucChuaMau"; Formula = ("=DanhMuc!`$J`$4:`$L`${0}" -f ($capacityRows.Count + 3)) }
+    )
+    foreach ($namedRange in $catalogNamedRanges) {
+        $workbook.Names.Add($namedRange.Name, $namedRange.Formula) | Out-Null
+    }
+
+    foreach ($cardStartRow in @(41, 61, 81)) {
+        $inputSheet.Cells.Item($cardStartRow + 1, 3).Validation.Delete()
+        $inputSheet.Cells.Item($cardStartRow + 1, 3).Validation.Add(3, 1, 1, "=DanhMuc_LoaiSo")
+        $inputSheet.Cells.Item($cardStartRow + 8, 3).Validation.Delete()
+        $inputSheet.Cells.Item($cardStartRow + 8, 3).Validation.Add(3, 1, 1, "=DanhMuc_HinhThucSuDung")
+        $inputSheet.Cells.Item($cardStartRow + 9, 3).Validation.Delete()
+        $inputSheet.Cells.Item($cardStartRow + 9, 3).Validation.Add(3, 1, 1, "=DanhMuc_LoaiDat")
+        $inputSheet.Cells.Item($cardStartRow + 17, 3).Validation.Delete()
+        $inputSheet.Cells.Item($cardStartRow + 17, 3).Validation.Add(3, 1, 1, "=DanhMuc_CoQuanCapSo")
+    }
 
     try {
         $workbook.BuiltinDocumentProperties.Item("Title").Value = "Hồ sơ thừa kế — MVP theo Hàng TK"
@@ -465,7 +585,7 @@ try {
     $inputSheet.Columns.Item("C").ColumnWidth = 24
     $inputSheet.Columns.Item("D:G").ColumnWidth = 12
 
-    foreach ($sheetToLock in @($inputSheet, $configSheet, $checkSheet, $exportSheet)) {
+    foreach ($sheetToLock in @($inputSheet, $configSheet, $checkSheet, $exportSheet, $catalogSheet)) {
         $sheetToLock.Cells.Locked = $true
     }
     $inputSheet.Range("B4").Locked = $false
@@ -589,13 +709,14 @@ try {
     Set-DocumentModuleCode $vbProject.VBComponents.Item("ThisWorkbook") (Join-Path $vbaRoot "ThisWorkbook.cls")
     Set-DocumentModuleCode $vbProject.VBComponents.Item($inputSheet.CodeName) (Join-Path $vbaRoot "NhapLieu.cls")
 
-    foreach ($sheetToProtect in @($inputSheet, $configSheet, $checkSheet, $exportSheet)) {
+    foreach ($sheetToProtect in @($inputSheet, $configSheet, $checkSheet, $exportSheet, $catalogSheet)) {
         $sheetToProtect.Protect("HoSoTK_MVP_2026", $true, $true, $true, $true, $false, $false, $false, $false, $false, $false, $false, $false, $false, $true, $false)
         $sheetToProtect.EnableSelection = -4142
     }
 
     $configSheet.Visible = 0
     $checkSheet.Visible = 0
+    $catalogSheet.Visible = 0
     $exportSheet.Visible = 2
     $inputSheet.Activate()
     $inputSheet.Range("B9").Select()
@@ -764,6 +885,10 @@ finally {
     if ($null -ne $workbook) {
         try { $workbook.Close($false) } catch {}
         Release-ComObject $workbook
+    }
+    if ($null -ne $sourceBook) {
+        try { $sourceBook.Close($false) } catch {}
+        Release-ComObject $sourceBook
     }
     if ($null -ne $excel) {
         try { $excel.Quit() } catch {}
