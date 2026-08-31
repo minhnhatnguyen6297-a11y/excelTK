@@ -198,13 +198,13 @@ Public Function ValidateWorkbook(Optional ByVal showResults As Boolean = True) A
         AddIssue "Cảnh báo", "ASSET_1_EMPTY", 1, vbNullString, _
                  "Phiếu TÀI SẢN 1 đang trống; hậu tố Word sẽ dồn lên.", AssetValueCell(1, ASSET_FIELD_LOAI_SO_OFFSET)
     End If
-    If TemplateHasToken("[Niêm Yết]") Or TemplateHasToken("[Niem Yet]") Then
+    If TemplateRequiresPlaceholder(13) Then
         If Len(Trim$(CStr(ThisWorkbook.Worksheets(SHEET_INPUT).Range("C103").Value2))) = 0 Then
             AddIssue "Lỗi", "NIEM_YET_MISSING", 0, vbNullString, _
                      "Mẫu đang chọn có placeholder Niêm Yết nhưng NiemYet đang trống.", ThisWorkbook.Worksheets(SHEET_INPUT).Range("C103")
         End If
     End If
-    If TemplateHasToken("[Người ủy quyền]") Or TemplateHasToken("[Nguoi uy quyen]") Then
+    If TemplateRequiresPlaceholder(14) Then
         If Len(Trim$(CStr(ThisWorkbook.Worksheets(SHEET_INPUT).Range("C105").Value2))) = 0 Then
             AddIssue "Cảnh báo", "AUTHORITY_MISSING", 0, vbNullString, _
                      "Mẫu đang chọn có placeholder Người ủy quyền nhưng ô đang trống.", ThisWorkbook.Worksheets(SHEET_INPUT).Range("C105")
@@ -226,10 +226,12 @@ End Function
 Private Sub ValidateAssetCard(ByVal assetIndex As Long, ByRef hasAnyAsset As Boolean)
     Dim anyField As Boolean
     Dim area As Double
+    Dim areaPresent As Boolean
     Dim componentTotal As Double
     Dim offset As Long
     Dim componentOffset As Variant
     Dim valueText As String
+    Dim rawValue As Variant
     anyField = AssetFieldHasAnyValue(assetIndex)
     If Not anyField Then Exit Sub
     hasAnyAsset = True
@@ -246,22 +248,29 @@ Private Sub ValidateAssetCard(ByVal assetIndex As Long, ByRef hasAnyAsset As Boo
     If Len(Trim$(CStr(AssetValueCell(assetIndex, 9).Value2))) = 0 Then AddAssetIssue assetIndex, "ASSET_LOAI_DAT", "Thiếu Loại đất.", 9
     For Each componentOffset In Array(7, 11, 12, 13, 14)
         offset = CLng(componentOffset)
-        valueText = Trim$(CStr(AssetValueCell(assetIndex, offset).Value2))
+        rawValue = AssetValueCell(assetIndex, offset).Value2
+        valueText = Trim$(CStr(rawValue))
         If Len(valueText) > 0 Then
-            If Not IsNumeric(valueText) Then
+            If VarType(rawValue) = vbString And Not IsNumeric(rawValue) Then
                 AddAssetIssue assetIndex, "ASSET_NOT_NUMBER", "Giá trị phải là số.", offset
-            ElseIf CDbl(valueText) < 0 Then
+            ElseIf Not IsNumeric(rawValue) Then
+                AddAssetIssue assetIndex, "ASSET_NOT_NUMBER", "Giá trị phải là số.", offset
+            ElseIf CDbl(rawValue) < 0 Then
                 AddAssetIssue assetIndex, "ASSET_NEGATIVE", "Giá trị không được âm.", offset
-            ElseIf offset = 7 Then
-                area = CDbl(valueText)
-            Else
-                componentTotal = componentTotal + CDbl(valueText)
+            End If
+            If IsNumeric(rawValue) And CDbl(rawValue) >= 0 Then
+                If offset = 7 Then
+                    area = CDbl(rawValue)
+                    areaPresent = True
+                Else
+                    componentTotal = componentTotal + CDbl(rawValue)
+                End If
             End If
         End If
     Next componentOffset
-    If area > 0 And componentTotal > area Then
+    If areaPresent And componentTotal > area Then
         AddAssetIssue assetIndex, "ASSET_AREA_OVER", "Tổng ONT + CLN + NTS + LUC lớn hơn Diện tích.", 7
-    ElseIf area > 0 And componentTotal < area Then
+    ElseIf areaPresent And componentTotal < area Then
         AddAssetIssue assetIndex, "ASSET_AREA_UNALLOCATED", "Tổng diện tích thành phần nhỏ hơn Diện tích; còn phần chưa phân loại.", 7, "Cảnh báo"
     End If
 End Sub
@@ -278,21 +287,16 @@ Private Sub AddAssetIssue(ByVal assetIndex As Long, ByVal code As String, ByVal 
     AddIssue severity, code, assetIndex, vbNullString, "Phiếu TÀI SẢN " & CStr(assetIndex) & ": " & message, AssetValueCell(assetIndex, offset)
 End Sub
 
-Private Function TemplateHasToken(ByVal token As String) As Boolean
-    Dim wordApp As Object, wordDoc As Object, path As String, story As Object
-    path = GetConfigText("DuongDanMauWord")
-    If Len(path) = 0 Or Dir$(path) = vbNullString Then Exit Function
-    On Error GoTo CleanFail
-    Set wordApp = CreateObject("Word.Application")
-    wordApp.Visible = False
-    Set wordDoc = wordApp.Documents.Open(path, False, True)
-    For Each story In wordDoc.StoryRanges
-        If InStr(1, CStr(story.Text), token, vbBinaryCompare) > 0 Then TemplateHasToken = True: Exit For
-    Next story
-CleanFail:
-    On Error Resume Next
-    If Not wordDoc Is Nothing Then wordDoc.Close False
-    If Not wordApp Is Nothing Then wordApp.Quit False
+Private Function TemplateRequiresPlaceholder(ByVal flagColumn As Long) As Boolean
+    Dim catalog As Worksheet, templateName As String, rowIndex As Long
+    templateName = Dir$(GetConfigText("DuongDanMauWord"))
+    Set catalog = ThisWorkbook.Worksheets("DanhMuc")
+    For rowIndex = 4 To catalog.Cells(catalog.Rows.Count, 10).End(xlUp).Row
+        If CStr(catalog.Cells(rowIndex, 10).Value2) = templateName Then
+            TemplateRequiresPlaceholder = CBool(catalog.Cells(rowIndex, flagColumn).Value2)
+            Exit Function
+        End If
+    Next rowIndex
 End Function
 
 Private Sub PrepareCheckSheet(ByVal wsCheck As Worksheet)

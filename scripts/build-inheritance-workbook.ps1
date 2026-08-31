@@ -189,10 +189,14 @@ function Get-WordCapacityRows {
         }
 
         $peopleCapacity = 0
+        $hasNiemYet = $false
+        $hasUyQuyen = $false
         if ($sectionStart -ge 0) {
             for ($detailIndex = $sectionStart + 1; $detailIndex -lt $lines.Count; $detailIndex++) {
                 if ($lines[$detailIndex] -match '^## ') { break }
                 $nameMatches = [regex]::Matches($lines[$detailIndex], '\[Tên (\d+)\]')
+                if ($lines[$detailIndex] -match '\[(Niêm Yết|Niem Yet)\]') { $hasNiemYet = $true }
+                if ($lines[$detailIndex] -match '\[(Người ủy quyền|Nguoi uy quyen)\]') { $hasUyQuyen = $true }
                 foreach ($nameMatch in $nameMatches) {
                     $peopleCapacity = [Math]::Max($peopleCapacity, [int]$nameMatch.Groups[1].Value)
                 }
@@ -207,6 +211,8 @@ function Get-WordCapacityRows {
             TemplateName = $templateName
             SucChuaNguoi = $peopleCapacity
             SucChuaTaiSan = $assetCapacity
+            CoNiemYet = $hasNiemYet
+            CoNguoiUyQuyen = $hasUyQuyen
         }
     }
     return $rows
@@ -351,16 +357,20 @@ try {
     $catalogSheet.Range("J3").Value2 = "TenMau"
     $catalogSheet.Range("K3").Value2 = "SucChuaNguoi"
     $catalogSheet.Range("L3").Value2 = "SucChuaTaiSan"
+    $catalogSheet.Range("M3").Value2 = "CoNiemYet"
+    $catalogSheet.Range("N3").Value2 = "CoNguoiUyQuyen"
     for ($capacityIndex = 0; $capacityIndex -lt $capacityRows.Count; $capacityIndex++) {
         $capacityRow = $capacityIndex + 4
         $catalogSheet.Cells.Item($capacityRow, 10).Value2 = [string]$capacityRows[$capacityIndex].TemplateName
         $catalogSheet.Cells.Item($capacityRow, 11).Value2 = [int]$capacityRows[$capacityIndex].SucChuaNguoi
         $catalogSheet.Cells.Item($capacityRow, 12).Value2 = [int]$capacityRows[$capacityIndex].SucChuaTaiSan
+        $catalogSheet.Cells.Item($capacityRow, 13).Value2 = [bool]$capacityRows[$capacityIndex].CoNiemYet
+        $catalogSheet.Cells.Item($capacityRow, 14).Value2 = [bool]$capacityRows[$capacityIndex].CoNguoiUyQuyen
     }
-    $catalogSheet.Range("N3").Value2 = "Tờ bản đồ 2025"
-    $catalogSheet.Range("O3").Value2 = "Sáp nhập thôn"
-    $catalogSheet.Range("N3:O3").Font.Bold = $true
-    $catalogSheet.Range("N3:O3").Interior.Color = Color-Ref "FFF1B8"
+    $catalogSheet.Range("P3").Value2 = "Tờ bản đồ 2025"
+    $catalogSheet.Range("Q3").Value2 = "Sáp nhập thôn"
+    $catalogSheet.Range("P3:Q3").Font.Bold = $true
+    $catalogSheet.Range("P3:Q3").Interior.Color = Color-Ref "FFF1B8"
 
     $catalogNamedRanges = @(
         @{ Name = "DanhMuc_LoaiSo"; Formula = ("=DanhMuc!`$A`$4:`$A`${0}" -f ($catalogData.LoaiSo.Count + 3)) },
@@ -916,6 +926,12 @@ try {
     if (-not $invalidWasBlocked) { throw "Ngày 31/02/1990 chưa bị chặn." }
     $testInput.Range("C14").Value2 = "1978"
     [void]$excel.Run($macroPrefix + "RefreshAllPeople")
+    $testInput.Range("C42").ClearContents()
+    [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("C42"))
+
+    # Cấu hình tối thiểu cho khối thông tin phụ khi mẫu thử có placeholder bắt buộc.
+    $testInput.Range("C103").Value2 = "Có"
+    $testInput.Range("C105").Value2 = [string]$catalogData.NguoiUyQuyen[0]
 
     $isValid = [bool]$excel.Run($macroPrefix + "ValidateWorkbook", $false)
     if (-not $isValid) { throw "Bộ dữ liệu giả không vượt qua validation." }
