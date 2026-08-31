@@ -127,9 +127,38 @@ Private Sub NormalizeOneDateCell(ByVal inputCell As Range, ByVal rawHeader As St
     End If
 End Sub
 
-Private Function TryParseLegalDate(ByVal inputValue As Variant, ByRef normalizedText As String, _
-                                   ByRef originalText As String, ByRef calculatedDate As Date, _
-                                   ByRef errorReason As String) As Boolean
+Public Function NormalizeStandaloneDateCell(ByVal inputCell As Range, ByVal rawCell As Range, _
+                                            ByVal calcCell As Range) As Boolean
+    Dim normalizedText As String
+    Dim originalText As String
+    Dim calculatedDate As Date
+    Dim errorReason As String
+
+    inputCell.NumberFormat = "@"
+    If Len(Trim$(CStr(inputCell.Value2))) = 0 Then
+        inputCell.ClearContents
+        rawCell.ClearContents
+        calcCell.ClearContents
+        NormalizeStandaloneDateCell = True
+        Exit Function
+    End If
+
+    rawCell.NumberFormat = "@"
+    If TryParseLegalDate(inputCell.Value2, normalizedText, originalText, calculatedDate, errorReason) Then
+        inputCell.Value2 = originalText
+        rawCell.Value2 = originalText
+        calcCell.Value = calculatedDate
+        calcCell.NumberFormat = "dd/mm/yyyy"
+        NormalizeStandaloneDateCell = True
+    Else
+        rawCell.Value2 = originalText
+        calcCell.ClearContents
+    End If
+End Function
+
+Public Function TryParseLegalDate(ByVal inputValue As Variant, ByRef normalizedText As String, _
+                                  ByRef originalText As String, ByRef calculatedDate As Date, _
+                                  ByRef errorReason As String) As Boolean
     Dim cleaned As String
     Dim parts As Variant
     Dim dayValue As Long

@@ -21,8 +21,17 @@ End Sub
 
 Private Sub Worksheet_Change(ByVal Target As Range)
     Dim lo As ListObject
+    Dim assetRange As Range
 
     On Error GoTo SafeExit
+    Set assetRange = Me.Range(Me.Cells(ASSET_FIRST_CARD_ROW + 1, ASSET_VALUE_COLUMN), _
+                                Me.Cells(ASSET_FIRST_CARD_ROW + (ASSET_CARD_HEIGHT * ASSET_CARD_COUNT) - 2, 7))
+    If Not Intersect(Target, assetRange) Is Nothing Then
+        Application.EnableEvents = False
+        HandleTaiSanChange Target
+        GoTo SafeExit
+    End If
+
     Set lo = Me.ListObjects(TABLE_PEOPLE)
     If lo.DataBodyRange Is Nothing Then Exit Sub
     If Intersect(Target, lo.DataBodyRange) Is Nothing Then Exit Sub
@@ -33,4 +42,3 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 SafeExit:
     Application.EnableEvents = True
 End Sub
-

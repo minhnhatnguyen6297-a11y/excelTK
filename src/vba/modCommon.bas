@@ -7,6 +7,23 @@ Public Const SHEET_CHECK As String = "KiemTra"
 Public Const SHEET_EXPORT As String = "XuatAn"
 Public Const TABLE_PEOPLE As String = "tblNguoi"
 
+Public Const ASSET_SECTION_ROW As Long = 40
+Public Const ASSET_FIRST_CARD_ROW As Long = 41
+Public Const ASSET_CARD_HEIGHT As Long = 20
+Public Const ASSET_CARD_COUNT As Long = 3
+Public Const ASSET_FIELD_COUNT As Long = 18
+Public Const ASSET_LABEL_COLUMN As Long = 2
+Public Const ASSET_VALUE_COLUMN As Long = 3
+Public Const ASSET_HIDDEN_ID_COLUMN As Long = 10
+Public Const ASSET_HIDDEN_ISSUED_RAW_COLUMN As Long = 11
+Public Const ASSET_HIDDEN_ISSUED_CALC_COLUMN As Long = 12
+Public Const ASSET_HIDDEN_HAS_DATA_COLUMN As Long = 13
+Public Const ASSET_FIELD_LOAI_SO_OFFSET As Long = 1
+Public Const ASSET_FIELD_SERIAL_OFFSET As Long = 2
+Public Const ASSET_FIELD_SO_THUA_OFFSET As Long = 4
+Public Const ASSET_FIELD_DIA_CHI_DAT_OFFSET As Long = 6
+Public Const ASSET_FIELD_NGAY_CAP_SO_OFFSET As Long = 16
+
 Public Const COL_STT As String = "STTNhap"
 Public Const COL_NAME As String = "HoTen"
 Public Const COL_BIRTH As String = "NgaySinh"
@@ -106,6 +123,33 @@ Public Function NextPersonId() As String
     If nextNumber < 1 Then nextNumber = 1
 
     NextPersonId = "P" & Format$(nextNumber, "0000")
+    counterCell.Value2 = nextNumber + 1
+End Function
+
+Public Function AssetCardStartRow(ByVal assetIndex As Long) As Long
+    If assetIndex < 1 Or assetIndex > ASSET_CARD_COUNT Then Exit Function
+    AssetCardStartRow = ASSET_FIRST_CARD_ROW + ((assetIndex - 1) * ASSET_CARD_HEIGHT)
+End Function
+
+Public Function AssetValueCell(ByVal assetIndex As Long, ByVal fieldOffset As Long) As Range
+    Set AssetValueCell = ThisWorkbook.Worksheets(SHEET_INPUT).Cells.Item( _
+        AssetCardStartRow(assetIndex) + fieldOffset, ASSET_VALUE_COLUMN)
+End Function
+
+Public Function AssetHiddenCell(ByVal assetIndex As Long, ByVal columnNumber As Long) As Range
+    Set AssetHiddenCell = ThisWorkbook.Worksheets(SHEET_INPUT).Cells.Item( _
+        AssetCardStartRow(assetIndex), columnNumber)
+End Function
+
+Public Function NextAssetId() As String
+    Dim counterCell As Range
+    Dim nextNumber As Long
+
+    Set counterCell = ThisWorkbook.Names("TaiSanIDTiepTheo").RefersToRange
+    nextNumber = SafeLong(counterCell.Value2, 1)
+    If nextNumber < 1 Then nextNumber = 1
+
+    NextAssetId = "TS" & Format$(nextNumber, "000")
     counterCell.Value2 = nextNumber + 1
 End Function
 

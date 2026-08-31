@@ -208,6 +208,7 @@ $baseOperations = @(
     @{ command = "set"; path = "/CauHinh/A7"; props = @{ value = "SucChuaNguoi" } },
     @{ command = "set"; path = "/CauHinh/A8"; props = @{ value = "DuongDanMauWord" } },
     @{ command = "set"; path = "/CauHinh/A9"; props = @{ value = "ThuMucXuat" } },
+    @{ command = "set"; path = "/CauHinh/A10"; props = @{ value = "TaiSanIDTiepTheo" } },
     @{ command = "set"; path = "/KiemTra/A1"; props = @{ value = "KẾT QUẢ KIỂM TRA DỮ LIỆU" } },
     @{ command = "set"; path = "/KiemTra/A2"; props = @{ value = "Số lỗi chặn" } },
     @{ command = "set"; path = "/KiemTra/A3"; props = @{ value = "Số cảnh báo" } },
@@ -349,7 +350,7 @@ try {
     $inputSheet.Columns.Item("R").ColumnWidth = 16
     $inputSheet.Columns.Item("S").ColumnWidth = 16
     $inputSheet.Columns.Item("T").ColumnWidth = 16
-    $inputSheet.Range("J:T").EntireColumn.Hidden = $true
+    $inputSheet.Range("J:W").EntireColumn.Hidden = $true
 
     $inputSheet.Range("C9:D38").NumberFormat = "@"
     $inputSheet.Range("F9:F38").NumberFormat = "@"
@@ -396,11 +397,90 @@ try {
     $receiveRange = $inputSheet.Range("I9:I38")
     Add-FormulaFormat -Range $receiveRange -Formula '=$I9=1' -Fill "217346" -FontColor "FFFFFF"
 
+    $assetFields = @(
+        "Loại sổ", "Số phát hành/Serial", "Số vào sổ", "Số thửa", "Số tờ bản đồ",
+        "Địa chỉ đất", "Diện tích (m²)", "Hình thức sử dụng", "Loại đất",
+        "Thời hạn sử dụng", "ONT (m²)", "CLN (m²)", "NTS (m²)", "LUC (m²)",
+        "Nguồn gốc", "Ngày cấp sổ", "Cơ quan cấp sổ", "Ghi chú"
+    )
+    $assetCardStartRows = @(41, 61, 81)
+    $assetLongFieldOffsets = @(6, 15, 18)
+
+    $inputSheet.Range("B40").Value2 = "THÔNG TIN TÀI SẢN"
+    $inputSheet.Range("B40").Font.Name = "Arial"
+    $inputSheet.Range("B40").Font.Bold = $true
+    $inputSheet.Range("B40").Font.Color = Color-Ref "FFFFFF"
+    $inputSheet.Range("B40").Interior.Color = Color-Ref "304F78"
+    $inputSheet.Range("C40:G40").Merge()
+    $inputSheet.Range("C40").Value2 = "Phiếu không dùng thì để trống"
+    $inputSheet.Range("C40:G40").Font.Name = "Arial"
+    $inputSheet.Range("C40:G40").Font.Italic = $true
+    $inputSheet.Range("C40:G40").Interior.Color = Color-Ref "EAF0F7"
+    $inputSheet.Range("J40").Value2 = "TaiSanID"
+    $inputSheet.Range("K40").Value2 = "NgayCapSoGoc"
+    $inputSheet.Range("L40").Value2 = "NgayCapSoTinh"
+    $inputSheet.Range("M40").Value2 = "CoDuLieu"
+
+    for ($assetIndex = 0; $assetIndex -lt $assetCardStartRows.Count; $assetIndex++) {
+        $cardStartRow = $assetCardStartRows[$assetIndex]
+        $cardHeader = $inputSheet.Range("B${cardStartRow}:G${cardStartRow}")
+        $cardHeader.Merge()
+        $cardHeader.Value2 = "TÀI SẢN $($assetIndex + 1)"
+        $cardHeader.Font.Name = "Arial"
+        $cardHeader.Font.Bold = $true
+        $cardHeader.Font.Color = Color-Ref "FFFFFF"
+        $cardHeader.Interior.Color = Color-Ref "17653D"
+        $cardHeader.HorizontalAlignment = -4108
+
+        for ($fieldIndex = 0; $fieldIndex -lt $assetFields.Count; $fieldIndex++) {
+            $fieldRow = $cardStartRow + $fieldIndex + 1
+            $labelCell = $inputSheet.Cells.Item($fieldRow, 2)
+            $labelCell.Value2 = [string]$assetFields[$fieldIndex]
+            $labelCell.Font.Name = "Arial"
+            $labelCell.Font.Bold = $true
+            $labelCell.Interior.Color = Color-Ref "F4F6F9"
+
+            if ($assetLongFieldOffsets -contains ($fieldIndex + 1)) {
+                $valueRange = $inputSheet.Range("C${fieldRow}:G${fieldRow}")
+                $valueRange.Merge()
+            }
+            else {
+                $valueRange = $inputSheet.Cells.Item($fieldRow, 3)
+            }
+            $valueRange.Font.Name = "Arial"
+            $valueRange.Interior.Color = Color-Ref "FFFFFF"
+            $valueRange.Borders.Color = Color-Ref "7AA7D8"
+            $valueRange.Borders.Weight = 1
+            Release-ComObject $labelCell
+            Release-ComObject $valueRange
+        }
+
+        $inputSheet.Range("B${cardStartRow}:G$($cardStartRow + 18)").Borders.Color = Color-Ref "7AA7D8"
+        $inputSheet.Range("B${cardStartRow}:G$($cardStartRow + 18)").Borders.Weight = 1
+        $inputSheet.Rows.Item($cardStartRow).RowHeight = 22
+        Release-ComObject $cardHeader
+    }
+    $inputSheet.Range("C57,C77,C97").NumberFormat = "@"
+    $inputSheet.Columns.Item("B").ColumnWidth = 25
+    $inputSheet.Columns.Item("C").ColumnWidth = 24
+    $inputSheet.Columns.Item("D:G").ColumnWidth = 12
+
     foreach ($sheetToLock in @($inputSheet, $configSheet, $checkSheet, $exportSheet)) {
         $sheetToLock.Cells.Locked = $true
     }
     $inputSheet.Range("B4").Locked = $false
     $inputSheet.Range("B9:G38").Locked = $false
+    foreach ($cardStartRow in $assetCardStartRows) {
+        for ($fieldIndex = 0; $fieldIndex -lt $assetFields.Count; $fieldIndex++) {
+            $fieldRow = $cardStartRow + $fieldIndex + 1
+            if ($assetLongFieldOffsets -contains ($fieldIndex + 1)) {
+                $inputSheet.Range("C${fieldRow}:G${fieldRow}").Locked = $false
+            }
+            else {
+                $inputSheet.Cells.Item($fieldRow, 3).Locked = $false
+            }
+        }
+    }
     $inputSheet.Range("B9:G38").Borders.Color = Color-Ref "7AA7D8"
     $inputSheet.Range("B9:G38").Borders.Weight = 1
 
@@ -426,7 +506,7 @@ try {
     $inputSheet.PageSetup.Zoom = $false
     $inputSheet.PageSetup.FitToPagesWide = 1
     $inputSheet.PageSetup.FitToPagesTall = $false
-    $inputSheet.PageSetup.PrintArea = '$A$1:$I$38'
+    $inputSheet.PageSetup.PrintArea = '$A$1:$I$100'
     $inputSheet.Tab.Color = Color-Ref "217346"
 
     $configSheet.Range("A1:B1").Merge()
@@ -436,8 +516,8 @@ try {
     $configSheet.Range("A1:B1").Font.Bold = $true
     $configSheet.Range("A1:B1").Font.Color = Color-Ref "FFFFFF"
     $configSheet.Range("A1:B1").Interior.Color = Color-Ref "304F78"
-    $configSheet.Range("A3:A9").Font.Name = "Arial"
-    $configSheet.Range("A3:A9").Font.Bold = $true
+    $configSheet.Range("A3:A10").Font.Name = "Arial"
+    $configSheet.Range("A3:A10").Font.Bold = $true
     $configSheet.Range("B3").Formula = "=HangTKToiDa"
     $configSheet.Range("B4").Value2 = "PALETTE_B_TUONG_PHAN"
     $configSheet.Range("B5").Value2 = "2.0.0"
@@ -447,11 +527,12 @@ try {
     $configSheet.Range("B8").Value = [string]$testTemplate
     $configSheet.Range("B9").NumberFormat = "@"
     $configSheet.Range("B9").Value = [string]$wordOutputDir
-    $configSheet.Range("B3:B9").Font.Name = "Arial"
-    $configSheet.Range("B3:B9").Interior.Color = Color-Ref "F4F6F9"
+    $configSheet.Range("B10").Value2 = 1
+    $configSheet.Range("B3:B10").Font.Name = "Arial"
+    $configSheet.Range("B3:B10").Interior.Color = Color-Ref "F4F6F9"
     $configSheet.Columns.Item("A").ColumnWidth = 24
     $configSheet.Columns.Item("B").ColumnWidth = 75
-    $configSheet.Range("A3:B9").Borders.Color = Color-Ref "D8DEE8"
+    $configSheet.Range("A3:B10").Borders.Color = Color-Ref "D8DEE8"
 
     $workbook.Names.Add("HangTKToiDa", '=NhapLieu!$B$4') | Out-Null
     $workbook.Names.Add("BangMauHangTK", '=CauHinh!$B$4') | Out-Null
@@ -460,6 +541,7 @@ try {
     $workbook.Names.Add("SucChuaNguoi", '=CauHinh!$B$7') | Out-Null
     $workbook.Names.Add("DuongDanMauWord", '=CauHinh!$B$8') | Out-Null
     $workbook.Names.Add("ThuMucXuat", '=CauHinh!$B$9') | Out-Null
+    $workbook.Names.Add("TaiSanIDTiepTheo", '=CauHinh!$B$10') | Out-Null
 
     $checkSheet.Range("A1:F1").Merge()
     $checkSheet.Range("A1").Value2 = "KẾT QUẢ KIỂM TRA DỮ LIỆU"
@@ -499,6 +581,7 @@ try {
     Add-StandardModule $vbProject "modCommon" (Join-Path $vbaRoot "modCommon.bas")
     Add-StandardModule $vbProject "modNgayThang" (Join-Path $vbaRoot "modNgayThang.bas")
     Add-StandardModule $vbProject "modNguoi" (Join-Path $vbaRoot "modNguoi.bas")
+    Add-StandardModule $vbProject "modTaiSan" (Join-Path $vbaRoot "modTaiSan.bas")
     Add-StandardModule $vbProject "modHangTKNhanh" (Join-Path $vbaRoot "modHangTKNhanh.bas")
     Add-StandardModule $vbProject "modValidation" (Join-Path $vbaRoot "modValidation.bas")
     Add-StandardModule $vbProject "modExportData" (Join-Path $vbaRoot "modExportData.bas")
@@ -585,6 +668,42 @@ try {
     if ([string]$testInput.Range("C10").Value2 -ne "02/1952") { throw "Tháng/năm không được giữ nguyên trên giao diện." }
     $ageAtDeath = [int]$excel.Run($macroPrefix + "AgeAtDeath", 1)
     if ($ageAtDeath -ne 49) { throw "Tính tuổi từ ngày chuẩn hóa không đúng." }
+
+    $testInput.Range("C63").Value2 = "SERIAL-002"
+    [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("C63"))
+    if ([string]$testInput.Range("J61").Value2 -ne "TS001") { throw "Phiếu tài sản 2 chưa sinh TS001." }
+    if (-not [bool]$testInput.Range("M61").Value2) { throw "Phiếu tài sản 2 chưa được đánh dấu có dữ liệu." }
+    if ([string]$testInput.Range("J41").Value2 -ne "" -or [string]$testInput.Range("J81").Value2 -ne "") {
+        throw "Phiếu tài sản trống lại có TaiSanID."
+    }
+
+    $testInput.Range("C42").Value2 = "GCN"
+    [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("C42"))
+    $assetDateExpectations = @{
+        "2015" = [datetime]"2015-01-01"
+        "05/2015" = [datetime]"2015-05-01"
+        "12/05/2015" = [datetime]"2015-05-12"
+    }
+    foreach ($dateText in $assetDateExpectations.Keys) {
+        $testInput.Range("C57").Value2 = [string]$dateText
+        [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("C57"))
+        if ([string]$testInput.Range("C57").Value2 -ne [string]$dateText -or
+            [string]$testInput.Range("K41").Value2 -ne [string]$dateText -or
+            [math]::Abs(([double]$testInput.Range("L41").Value2) - $assetDateExpectations[$dateText].ToOADate()) -gt 0.0001) {
+            throw "Ngày cấp sổ '$dateText' không được giữ nguyên và chuẩn hóa đúng."
+        }
+    }
+
+    $testInput.Range("C63").ClearContents()
+    [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("C63"))
+    if ([string]$testInput.Range("J61").Value2 -ne "" -or [string]$testInput.Range("K61").Value2 -ne "" -or
+        [string]$testInput.Range("L61").Value2 -ne "" -or [bool]$testInput.Range("M61").Value2) {
+        throw "Xóa trắng phiếu tài sản chưa xóa dữ liệu hệ thống."
+    }
+    if (-not [bool]$testInput.Range("J:W").EntireColumn.Hidden) { throw "Vùng dữ liệu tài sản J:W chưa được ẩn." }
+    if ([string]$testBook.Names.Item("TaiSanIDTiepTheo").RefersToRange.Address($false, $false, 1, $true) -notmatch "B10") {
+        throw "Bộ đếm TaiSanIDTiepTheo chưa trỏ đến CauHinh!B10."
+    }
 
     $originalAddress = [string]$testInput.Range("G14").Value2
     $editTimer = [System.Diagnostics.Stopwatch]::StartNew()
