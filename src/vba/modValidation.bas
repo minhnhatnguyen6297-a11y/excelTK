@@ -34,6 +34,8 @@ Public Function ValidateWorkbook(Optional ByVal showResults As Boolean = True) A
     Dim visited As Object
     Dim capacity As Long
     Dim personCount As Long
+    Dim assetIndex As Long
+    Dim hasAssetData As Boolean
 
     Set lo = PeopleTable()
     Set wsCheck = ThisWorkbook.Worksheets(SHEET_CHECK)
@@ -43,6 +45,7 @@ Public Function ValidateWorkbook(Optional ByVal showResults As Boolean = True) A
     Set identitySeen = CreateObject("Scripting.Dictionary")
 
     NormalizeAllDates False
+    RefreshTaiSanTable
     PrepareCheckSheet wsCheck
     maxLevel = GetHangTKToiDa()
     If maxLevel < 0 Or maxLevel > 4 Then
@@ -184,6 +187,30 @@ Public Function ValidateWorkbook(Optional ByVal showResults As Boolean = True) A
                  "Người từ chối chưa được chia nhóm; MVP sẽ dùng TC_DEFAULT.", Nothing
     End If
 
+    For assetIndex = 1 To ASSET_CARD_COUNT
+        ValidateAssetCard assetIndex, hasAssetData
+    Next assetIndex
+    If Not hasAssetData Then
+        AddIssue "Lỗi", "ASSET_NONE", 0, vbNullString, _
+                 "Chưa có phiếu tài sản nào có dữ liệu.", ThisWorkbook.Worksheets(SHEET_INPUT).Range("B40")
+    End If
+    If Not TaiSanHasData(1) And (TaiSanHasData(2) Or TaiSanHasData(3)) Then
+        AddIssue "Cảnh báo", "ASSET_1_EMPTY", 1, vbNullString, _
+                 "Phiếu TÀI SẢN 1 đang trống; hậu tố Word sẽ dồn lên.", AssetValueCell(1, ASSET_FIELD_LOAI_SO_OFFSET)
+    End If
+    If TemplateHasToken("[Niêm Yết]") Or TemplateHasToken("[Niem Yet]") Then
+        If Len(Trim$(CStr(ThisWorkbook.Worksheets(SHEET_INPUT).Range("C103").Value2))) = 0 Then
+            AddIssue "Lỗi", "NIEM_YET_MISSING", 0, vbNullString, _
+                     "Mẫu đang chọn có placeholder Niêm Yết nhưng NiemYet đang trống.", ThisWorkbook.Worksheets(SHEET_INPUT).Range("C103")
+        End If
+    End If
+    If TemplateHasToken("[Người ủy quyền]") Or TemplateHasToken("[Nguoi uy quyen]") Then
+        If Len(Trim$(CStr(ThisWorkbook.Worksheets(SHEET_INPUT).Range("C105").Value2))) = 0 Then
+            AddIssue "Cảnh báo", "AUTHORITY_MISSING", 0, vbNullString, _
+                     "Mẫu đang chọn có placeholder Người ủy quyền nhưng ô đang trống.", ThisWorkbook.Worksheets(SHEET_INPUT).Range("C105")
+        End If
+    End If
+
 FinishValidation:
     wsCheck.Range("B2").Value2 = mErrorCount
     wsCheck.Range("B3").Value2 = mWarningCount
@@ -194,6 +221,78 @@ FinishValidation:
         wsCheck.Activate
         wsCheck.Range("A1").Select
     End If
+End Function
+
+Private Sub ValidateAssetCard(ByVal assetIndex As Long, ByRef hasAnyAsset As Boolean)
+    Dim anyField As Boolean
+    Dim area As Double
+    Dim componentTotal As Double
+    Dim offset As Long
+    Dim componentOffset As Variant
+    Dim valueText As String
+    anyField = AssetFieldHasAnyValue(assetIndex)
+    If Not anyField Then Exit Sub
+    hasAnyAsset = True
+    If Not TaiSanHasData(assetIndex) Then
+        AddIssue "Cảnh báo", "ASSET_PARTIAL", assetIndex, vbNullString, _
+                 "Phiếu TÀI SẢN " & CStr(assetIndex) & " có vài trường lẻ nhưng chưa đủ dữ liệu nhận diện; nghi nhập dở.", _
+                 AssetValueCell(assetIndex, ASSET_FIELD_LOAI_SO_OFFSET)
+        Exit Sub
+    End If
+    If Len(Trim$(CStr(AssetValueCell(assetIndex, 1).Value2))) = 0 Then AddAssetIssue assetIndex, "ASSET_LOAI_SO", "Thiếu Loại sổ.", 1
+    If Len(Trim$(CStr(AssetValueCell(assetIndex, 4).Value2))) = 0 Then AddAssetIssue assetIndex, "ASSET_SO_THUA", "Thiếu Số thửa.", 4
+    If Len(Trim$(CStr(AssetValueCell(assetIndex, 6).Value2))) = 0 Then AddAssetIssue assetIndex, "ASSET_DIA_CHI", "Thiếu Địa chỉ đất.", 6
+    If Len(Trim$(CStr(AssetValueCell(assetIndex, 7).Value2))) = 0 Then AddAssetIssue assetIndex, "ASSET_DIEN_TICH", "Thiếu Diện tích.", 7
+    If Len(Trim$(CStr(AssetValueCell(assetIndex, 9).Value2))) = 0 Then AddAssetIssue assetIndex, "ASSET_LOAI_DAT", "Thiếu Loại đất.", 9
+    For Each componentOffset In Array(7, 11, 12, 13, 14)
+        offset = CLng(componentOffset)
+        valueText = Trim$(CStr(AssetValueCell(assetIndex, offset).Value2))
+        If Len(valueText) > 0 Then
+            If Not IsNumeric(valueText) Then
+                AddAssetIssue assetIndex, "ASSET_NOT_NUMBER", "Giá trị phải là số.", offset
+            ElseIf CDbl(valueText) < 0 Then
+                AddAssetIssue assetIndex, "ASSET_NEGATIVE", "Giá trị không được âm.", offset
+            ElseIf offset = 7 Then
+                area = CDbl(valueText)
+            Else
+                componentTotal = componentTotal + CDbl(valueText)
+            End If
+        End If
+    Next componentOffset
+    If area > 0 And componentTotal > area Then
+        AddAssetIssue assetIndex, "ASSET_AREA_OVER", "Tổng ONT + CLN + NTS + LUC lớn hơn Diện tích.", 7
+    ElseIf area > 0 And componentTotal < area Then
+        AddAssetIssue assetIndex, "ASSET_AREA_UNALLOCATED", "Tổng diện tích thành phần nhỏ hơn Diện tích; còn phần chưa phân loại.", 7, "Cảnh báo"
+    End If
+End Sub
+
+Private Function AssetFieldHasAnyValue(ByVal assetIndex As Long) As Boolean
+    Dim offset As Long
+    For offset = 1 To ASSET_FIELD_COUNT
+        If Len(Trim$(CStr(AssetValueCell(assetIndex, offset).Value2))) > 0 Then AssetFieldHasAnyValue = True: Exit Function
+    Next offset
+End Function
+
+Private Sub AddAssetIssue(ByVal assetIndex As Long, ByVal code As String, ByVal message As String, ByVal offset As Long, Optional ByVal severity As String = vbNullString)
+    If Len(severity) = 0 Then severity = "Lỗi"
+    AddIssue severity, code, assetIndex, vbNullString, "Phiếu TÀI SẢN " & CStr(assetIndex) & ": " & message, AssetValueCell(assetIndex, offset)
+End Sub
+
+Private Function TemplateHasToken(ByVal token As String) As Boolean
+    Dim wordApp As Object, wordDoc As Object, path As String, story As Object
+    path = GetConfigText("DuongDanMauWord")
+    If Len(path) = 0 Or Dir$(path) = vbNullString Then Exit Function
+    On Error GoTo CleanFail
+    Set wordApp = CreateObject("Word.Application")
+    wordApp.Visible = False
+    Set wordDoc = wordApp.Documents.Open(path, False, True)
+    For Each story In wordDoc.StoryRanges
+        If InStr(1, CStr(story.Text), token, vbBinaryCompare) > 0 Then TemplateHasToken = True: Exit For
+    Next story
+CleanFail:
+    On Error Resume Next
+    If Not wordDoc Is Nothing Then wordDoc.Close False
+    If Not wordApp Is Nothing Then wordApp.Quit False
 End Function
 
 Private Sub PrepareCheckSheet(ByVal wsCheck As Worksheet)
