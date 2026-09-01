@@ -765,6 +765,7 @@ try {
     Add-StandardModule $vbProject "modHangTKNhanh" (Join-Path $vbaRoot "modHangTKNhanh.bas")
     Add-StandardModule $vbProject "modValidation" (Join-Path $vbaRoot "modValidation.bas")
     Add-StandardModule $vbProject "modExportData" (Join-Path $vbaRoot "modExportData.bas")
+    Add-StandardModule $vbProject "modXuatWord" (Join-Path $vbaRoot "modXuatWord.bas")
     Add-StandardModule $vbProject "modWordExport" (Join-Path $vbaRoot "modWordExport.bas")
     Set-DocumentModuleCode $vbProject.VBComponents.Item("ThisWorkbook") (Join-Path $vbaRoot "ThisWorkbook.cls")
     Set-DocumentModuleCode $vbProject.VBComponents.Item($inputSheet.CodeName) (Join-Path $vbaRoot "NhapLieu.cls")
