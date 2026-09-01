@@ -1,8 +1,8 @@
 # Đặc tả hồ sơ thừa kế — SOT tổng
 
-> Trạng thái: **§1–§9 đã chốt và đã triển khai trong workbook MVP v0.2.1. §10–§14 đã chốt về đặc tả, chưa triển khai (đích v0.3.0).**
-> Ngày cập nhật: 31/08/2026.
-> Phiên bản cấu trúc dữ liệu: hiện hành `2.0.0`; đích của đặc tả này là `2.1.0`.
+> Trạng thái: **§1–§9 đã triển khai trong workbook MVP v0.2.1. Các thay đổi bố cục, trường mở rộng, placeholder và cách kiểm tra tại §2–§14 đã chốt lại ngày 01/09/2026, chưa triển khai (đích v0.3.0).**
+> Ngày cập nhật: 01/09/2026.
+> Phiên bản cấu trúc dữ liệu: hiện hành `2.0.0`; đích của đặc tả này là `2.2.0`.
 > Phạm vi: toàn bộ luồng một hồ sơ thừa kế — nhập người, nhập tài sản, nhập thông tin phụ, kiểm tra, xuất Word.
 
 Đây là nguồn quyết định chính (SOT) duy nhất cho hồ sơ thừa kế. Tài liệu được sắp theo đúng thứ tự thao tác của người dùng, không theo lớp kỹ thuật.
@@ -14,17 +14,17 @@ Nội dung chờ quyết định, chưa thuộc SOT: [`noi-dung-ngoai-sot.md`](n
 | Mục | Nội dung | Trạng thái |
 | --- | --- | --- |
 | §1 | Mục tiêu và mô hình một-file-một-hồ-sơ | Đã triển khai |
-| §2 | Quyết định kiến trúc đã chốt | Đã triển khai |
+| §2 | Quyết định kiến trúc đã chốt | §2.1 đã triển khai; §2.2–2.3 cập nhật cho v0.3.0 |
 | §3 | Luồng sử dụng đầy đủ | §3.1–3.2 đã triển khai; §3.3–3.5 đích v0.3.0 |
 | §4 | Bố cục sheet `NhapLieu` | Vùng người đã triển khai; tài sản/phụ đích v0.3.0 |
-| §5 | Bước 1 — Nhập người | Đã triển khai |
-| §6 | Quy ước ngày tháng | Đã triển khai |
+| §5 | Bước 1 — Nhập người | Trường chuẩn đã triển khai; vùng mở rộng đích v0.3.0 |
+| §6 | Quy ước ngày tháng và Text | Xử lý ngày đã triển khai; chuẩn Text toàn bộ đích v0.3.0 |
 | §7 | Hàng TK, nhánh và màu | Đã triển khai |
 | §8 | Người nhận đất, từ chối, trạng thái | Đã triển khai |
-| §9 | Bảo vệ ô và tốc độ nhập | Đã triển khai |
-| §10 | Bước 2 — Nhập tài sản theo phiếu dọc | Đích v0.3.0 |
+| §9 | Bảo vệ ô và tốc độ nhập | Vùng chuẩn đã triển khai; bảo vệ vùng mở rộng đích v0.3.0 |
+| §10 | Bước 2 — Nhập tài sản theo thẻ dọc | Đích v0.3.0 |
 | §11 | Bước 3 — Thông tin phụ của hồ sơ | Đích v0.3.0 |
-| §12 | Bước 4 — Kiểm tra trước khi xuất | Phần người đã triển khai; tài sản/sức chứa đích v0.3.0 |
+| §12 | Bước 4 — Kiểm tra trước khi xuất | Cơ chế chẩn đoán không chặn xuất là đích v0.3.0 |
 | §13 | Bước 5 — Xuất Word | Template kiểm thử đã chạy; mẫu thật đích v0.3.0 |
 | §14 | Danh mục tra cứu | Đích v0.3.0 |
 | §15 | Ngoài phạm vi | — |
@@ -68,19 +68,30 @@ Thông tin dùng để tính phải được bảo vệ khỏi sửa nhầm. Ng�
 
 ### 2.2. Tài sản
 
-- **Mỗi tài sản là một phiếu dọc độc lập**, nhãn ở bên trái và giá trị ở bên phải. Không dùng bảng ngang một-dòng-một-tài-sản.
-  Lý do: một thửa đất có 18 trường; xếp ngang tạo bảng rất rộng, phải cuộn ngang để đọc và dễ nhập lệch cột.
-- **Phiếu tài sản nằm ngay dưới vùng người, trên cùng sheet `NhapLieu`.** Không tách sang sheet riêng, để người dùng nhập một mạch từ trên xuống dưới trong một màn hình làm việc.
-- Số phiếu cố định là **3**, khớp quy ước hậu tố tài sản của mẫu Word (`không hậu tố` / ` 2` / ` 3`). Phiếu không dùng thì để trống.
-- Người dùng nhập trực tiếp vào phiếu. VBA đọc phiếu và dựng bảng ẩn `tblTaiSan` trên `XuatAn` để phục vụ xuất; người dùng không nhập vào bảng ẩn đó.
+- **Mỗi tài sản là một thẻ dọc độc lập**, nhãn ở bên trái và giá trị ở bên phải. Không dùng bảng ngang một-dòng-một-tài-sản.
+- **Ba thẻ tài sản đặt cạnh nhau**, cùng bắt đầu ở hàng 8 hoặc 9, phía bên phải bảng Người trên cùng sheet `NhapLieu`. Vị trí chuẩn là `AA:AB`, `AC:AD`, `AE:AF` tương ứng Tài sản 1, 2, 3.
+- Bảng Người dùng vùng `A:I`; vùng `J:Z` là 17 cột dự phòng cho trường Người mở rộng. Các cột dự phòng chưa dùng được ẩn; khi có tiêu đề thì hiện cột đó.
+- Cách bố trí này giữ được dạng thẻ dọc nhưng không tạo một vùng dài 60 hàng. Người dùng chỉ cuộn ngang khi cần xem hoặc nhập tài sản, không phải cuộn xuống dưới bảng Người.
+- Số thẻ cố định là **3**. Thẻ không dùng thì để trống.
+- Người dùng nhập trực tiếp vào thẻ. VBA dò nhãn trường, đọc ô giá trị bên cạnh và dựng bảng ẩn `tblTaiSan` trên `XuatAn` để phục vụ tính toán/xuất; người dùng không nhập vào bảng ẩn đó.
+- Các cột kỹ thuật của Người và Tài sản không còn đặt ở `J:W` trên `NhapLieu`; chúng phải chuyển sang bảng hệ thống trên sheet rất ẩn `XuatAn` để không chiếm vùng mở rộng.
 
-### 2.3. Thông tin phụ
+### 2.3. Trường nhập và trường mở rộng
 
-- Thông tin phụ của hồ sơ nằm ở khối cuối sheet `NhapLieu`, sau vùng tài sản.
-- MVP chỉ gồm những trường mẫu `1. PCDS .docx` thật sự dùng: niêm yết, số công chứng, người ủy quyền, người ủy quyền 2.
-- Trường workbook cũ có mà mẫu chưa dùng (giá chuyển nhượng, số điện thoại) **không** đưa vào MVP; thêm khi có mẫu cần.
+- Mọi ô nhập nhìn thấy của Người, Tài sản và Hồ sơ mặc định có định dạng Text (`@`). Chuỗi `05`, `00123` hoặc `1/2` phải được giữ nguyên, không để Excel tự đổi thành số hay ngày.
+- Trường chuẩn do workbook cung cấp sẵn. Trường mở rộng do người dùng khai báo trực tiếp bằng cách gõ tiêu đề/nhãn vào ô dành sẵn, không dùng form và không cần sửa VBA.
+- Không tạo sheet `Trường mở rộng`, không tạo `tblTruongTuDo` và không bắt người dùng đăng ký key-value ở nơi khác; tiêu đề/nhãn ngay trên `NhapLieu` là nguồn khai báo duy nhất.
+- Trường mở rộng có thể là dữ liệu nhập tay hoặc công thức Excel. Công thức là trách nhiệm của người dùng; VBA chỉ đọc kết quả đang có trong ô, không tự suy luận hay viết lại công thức.
+- Nút `Đồng bộ trường` chỉ sao chép cấu trúc cần thiết: áp dụng công thức xuống các dòng Người cùng nhóm, hoặc sao chép nhãn/công thức từ thẻ Tài sản 1 sang thẻ 2 và 3. Nút này không sao chép giá trị nhập tay.
+- VBA luôn dò trường theo tên tiêu đề/nhãn đã chuẩn hóa, không dựa vào số thứ tự cột hoặc độ lệch hàng cố định.
 
-### 2.4. Không quay lại
+### 2.4. Thông tin phụ
+
+- Thông tin Hồ sơ nằm trong khối `B40:C51` trên `NhapLieu`: cột `B` là nhãn, cột `C` là giá trị. Khối này chỉ dài 12 hàng và không làm ba thẻ Tài sản kéo dài xuống dưới.
+- MVP có sẵn các trường: niêm yết, số công chứng, người ủy quyền, người ủy quyền 2.
+- Khối có các hàng trống dự phòng để người dùng tự thêm nhãn, dữ liệu hoặc công thức theo cùng hợp đồng tại §11.
+
+### 2.5. Không quay lại
 
 Không quay lại mô hình nhập vai trò chi tiết nếu chưa có yêu cầu nghiệp vụ mới. Không mô hình hóa khối di sản, tỷ lệ phân chia hay đồng chủ thứ ba trở lên trong phiên bản này.
 
@@ -104,56 +115,63 @@ Không có bước chọn vai trò sau mỗi lần thêm người và không có
 
 ### 3.3. Bước 2 — Nhập tài sản
 
-9. Cuộn xuống khối `THÔNG TIN TÀI SẢN`.
-10. Điền phiếu `Tài sản 1`. Loại sổ, hình thức sử dụng, loại đất, cơ quan cấp chọn từ danh sách.
-11. Nếu hồ sơ có thửa thứ hai hoặc thứ ba, điền tiếp phiếu `Tài sản 2`, `Tài sản 3`. Phiếu không dùng để trống.
+9. Cuộn ngang sang phải tới khối `THÔNG TIN TÀI SẢN` bắt đầu từ cột `AA`.
+10. Điền thẻ `Tài sản 1`. Loại sổ, hình thức sử dụng, loại đất, cơ quan cấp chọn từ danh sách.
+11. Nếu hồ sơ có thửa thứ hai hoặc thứ ba, điền thẻ `Tài sản 2`, `Tài sản 3` ở ngay bên cạnh. Thẻ không dùng để trống.
 
 ### 3.4. Bước 3 — Thông tin phụ
 
-12. Cuộn xuống khối `THÔNG TIN HỒ SƠ`, điền xã niêm yết, số công chứng, người ủy quyền.
+12. Điền khối `THÔNG TIN HỒ SƠ`: xã niêm yết, số công chứng, người ủy quyền.
 13. Chọn mẫu Word ở ô `Mẫu Word`.
 
 ### 3.5. Bước 4–5 — Kiểm tra và xuất
 
-14. Bấm `Kiểm tra dữ liệu`. Nếu sheet `KiemTra` báo lỗi chặn xuất, sửa theo STT và họ tên được chỉ ra.
-15. Bấm `Xuất Văn bản`. File Word mới được tạo trong thư mục kết quả; workbook không tự mở file và không tự mở thư mục.
+14. Có thể bấm `Kiểm tra dữ liệu` để xem danh sách gợi ý sửa. Đây là bước hỗ trợ, không phải cổng chặn xuất.
+15. Bấm `Xuất Văn bản`. File Word mới được tạo trong thư mục kết quả; lỗi dữ liệu trong ô được thể hiện rõ trong Word để người dùng tự tìm và sửa. Workbook không tự mở file và không tự mở thư mục.
 
 ## 4. Bố cục sheet `NhapLieu`
 
-Một sheet, ba khối, đọc từ trên xuống theo đúng thứ tự thao tác.
+Một sheet, các khối đặt cạnh nhau để tránh vùng nhập dài. Bảng Người ở trái; ba thẻ Tài sản ở phải.
 
 ```text
-hàng 1–4    THANH CÔNG CỤ
-hàng 6–7    nhãn vùng người
-hàng 8      tiêu đề bảng người
-hàng 9–38   30 dòng người
-hàng 40     nhãn THÔNG TIN TÀI SẢN
-hàng 41–60  phiếu Tài sản 1
-hàng 61–80  phiếu Tài sản 2
-hàng 81–100 phiếu Tài sản 3
-hàng 102    nhãn THÔNG TIN HỒ SƠ
-hàng 103–108 các trường hồ sơ
+hàng 1–4     THANH CÔNG CỤ
+hàng 6–7     nhãn vùng Người và nhãn THÔNG TIN TÀI SẢN
+hàng 8       tiêu đề bảng Người; tiêu đề TÀI SẢN 1, 2, 3
+hàng 9–38    30 dòng Người; đồng thời là các hàng trường của ba thẻ Tài sản
+hàng 40–51   THÔNG TIN HỒ SƠ tại B:C
+
+cột A:I      bảng Người chuẩn
+cột J:Z      17 cột dự phòng trường Người mở rộng
+cột AA:AB    nhãn | giá trị của Tài sản 1
+cột AC:AD    nhãn | giá trị của Tài sản 2
+cột AE:AF    nhãn | giá trị của Tài sản 3
 ```
+
+- Không đặt ba thẻ Tài sản nối tiếp nhau thành vùng 60 hàng.
+- Không dùng cột `J:W` làm nơi chứa dữ liệu kỹ thuật. Dữ liệu kỹ thuật chuyển sang `XuatAn`.
+- Các cột `J:Z` chưa có tiêu đề được ẩn để giao diện gọn; `Đồng bộ trường` hiện cột đã được khai báo.
+- Mỗi thẻ Tài sản có cùng tập nhãn theo cùng thứ tự. Thẻ 1 là bản mẫu khi thêm trường mới; xem §10.6.
+- Nếu cần đúng 20 cột dự phòng cho Người thì phải dời ba thẻ bắt đầu từ `AD`; đây là thay đổi bố cục, không được tự làm trong code. Bản v0.3.0 chốt dùng 17 cột `J:Z` và bắt đầu thẻ tại `AA`.
 
 ### 4.1. Thanh công cụ
 
 ```text
-Hàng TK tối đa  [ 2 ]        [ Kiểm tra dữ liệu ]   [ Xuất Văn bản ]
-Mẫu Word        [ 1. PCDS .docx                                   ]
+Hàng TK tối đa: 2        | Kiểm tra dữ liệu | Xuất Văn bản
+Mẫu Word: 1. PCDS .docx
 ```
 
 - `Hàng TK tối đa` mặc định `2`, tối thiểu `0`, tối đa `4`.
-- `Xuất Văn bản` là hành động chính và đặt bên phải, đúng trong vùng `H3:I4`.
+- `Xuất Văn bản` là hành động chính và đặt ở vùng dễ thấy bên trái, không đè lên cột trường mở rộng.
 - Nếu giảm mức tối đa thấp hơn Hàng TK đang có dữ liệu, không tự sửa dữ liệu; chặn và chỉ rõ các dòng cần xử lý.
 - Nếu tăng mức tối đa, bảng màu và vòng chuyển Hàng TK cập nhật ngay.
-- Ô `Mẫu Word` giữ đường dẫn mẫu đang chọn. Đổi mẫu làm cập nhật sức chứa người và sức chứa tài sản dùng cho kiểm tra (§12.3).
+- Ô `Mẫu Word` giữ đường dẫn mẫu đang chọn. Đổi mẫu làm cập nhật thông tin sức chứa dùng cho chẩn đoán (§12.3), nhưng không tự chặn xuất.
 
 ### 4.2. Nhãn bắt buộc trên giao diện
 
 - `VÙNG NHẬP DỮ LIỆU` trên các cột người dùng được gõ.
 - `BẤM ĐỂ CHỌN` trên các cột hành động.
-- `THÔNG TIN TÀI SẢN` trên khối tài sản, kèm dòng phụ `Phiếu không dùng thì để trống`.
-- `THÔNG TIN HỒ SƠ` trên khối cuối.
+- `THÔNG TIN TÀI SẢN` trên ba thẻ cạnh nhau, kèm dòng phụ `Thẻ không dùng thì để trống`.
+- `THÔNG TIN HỒ SƠ` trên khối hồ sơ.
 
 ---
 
@@ -176,34 +194,45 @@ Hai chủ đất ở `H0` được coi là một nhóm gốc chung, không phả
 
 | Trường | Hiển thị | Ý nghĩa |
 | --- | :---: | --- |
-| `NguoiID` | Ẩn | ID bất biến do hệ thống sinh, ví dụ `P0001` |
+| `NguoiID` | Ẩn trên `XuatAn` | ID bất biến do hệ thống sinh, ví dụ `P0001` |
 | `STTNhap` | Có, chỉ đọc | Thứ tự nhập và thứ tự hiển thị ổn định |
 | `HoTen` | Có, được nhập | Họ tên dùng để tạo văn bản |
 | `NgaySinh`, `NgayChet`, `NgayCap` | Có, được nhập | Text hiển thị đúng nội dung người dùng đã nhập |
 | `SoGiayTo`, `DiaChi` | Có, được nhập | Thông tin nhân thân dùng để tạo văn bản |
 | `HangTK` | Có, chỉ bấm | Số nguyên từ `0` đến `HangTKToiDa`; chủ đất là `0`, dòng nhánh là `1` trở lên |
 | `NhanDat` | Có, chỉ bấm | Lựa chọn người nhận đất |
-| `TrangThai` | Ẩn | Kết quả do engine tính: đã chết, nhận đất hoặc từ chối |
-| `ParentNguoiID` | Ẩn | Để trống ở H0–H1; từ H2 trở đi là người ở Hàng TK liền trước mà nhánh trực thuộc |
-| `LaChuDat` | Ẩn | Cờ chủ đất; hai vị trí đầu được gán tự động trong MVP |
-| `NhomTuChoiID` | Ẩn | Khóa nhóm văn bản từ chối, để trống khi chưa phân nhóm |
-| `NgaySinhGoc`, `NgayChetGoc`, `NgayCapGoc` | Ẩn | Chuỗi người dùng đã nhập, được giữ ở dạng text để không bị Excel tự đổi |
-| `NgaySinhTinh`, `NgayChetTinh`, `NgayCapTinh` | Ẩn | Ngày thật của Excel dùng để so sánh và tính toán |
-| `LoaiCC` | Ẩn | Loại giấy tờ suy từ `NgayCapTinh`, xem §14.2 |
-| `NoiCapCC` | Ẩn | Nơi cấp tra theo `LoaiCC`, xem §14.2 |
-| `NhanDiaChi` | Ẩn | Nhãn địa chỉ suy theo `LoaiCC`, xem §14.2 |
+| `TrangThai` | Ẩn trên `XuatAn` | Kết quả do engine tính: đã chết, nhận đất hoặc từ chối |
+| `ParentNguoiID` | Ẩn trên `XuatAn` | Để trống ở H0–H1; từ H2 trở đi là người ở Hàng TK liền trước mà nhánh trực thuộc |
+| `LaChuDat` | Ẩn trên `XuatAn` | Cờ chủ đất; hai vị trí đầu được gán tự động trong MVP |
+| `NhomTuChoiID` | Ẩn trên `XuatAn` | Khóa nhóm văn bản từ chối, để trống khi chưa phân nhóm |
+| `NgaySinhGoc`, `NgayChetGoc`, `NgayCapGoc` | Ẩn trên `XuatAn` | Chuỗi người dùng đã nhập, được giữ ở dạng text để không bị Excel tự đổi |
+| `NgaySinhTinh`, `NgayChetTinh`, `NgayCapTinh` | Ẩn trên `XuatAn` | Ngày thật của Excel dùng để so sánh và tính toán |
+| `LoaiCC` | Ẩn trên `XuatAn` | Loại giấy tờ suy từ `NgayCapTinh`, xem §14.2 |
+| `NoiCapCC` | Ẩn trên `XuatAn` | Nơi cấp tra theo `LoaiCC`, xem §14.2 |
+| `NhanDiaChi` | Ẩn trên `XuatAn` | Nhãn địa chỉ suy theo `LoaiCC`, xem §14.2 |
 
-Ba cột `LoaiCC`, `NoiCapCC`, `NhanDiaChi` là phần thêm của `2.1.0`. Chúng do VBA ghi, người dùng không gõ.
+Các trường kỹ thuật liên kết với dòng hiển thị bằng `NguoiID` hoặc `STTNhap`, không bằng vị trí cột. VBA không được dùng số cột cố định như `Cells(row, 10)` để tìm trường. Khi cần cột của `ListObject`, phải tìm `ListColumns` theo đúng tên tiêu đề.
+
+Ba trường `LoaiCC`, `NoiCapCC`, `NhanDiaChi` do VBA tính, người dùng không gõ.
 
 Không lưu trường nhập tay `TuChoi`. Đây là kết quả được engine tính để tránh các trạng thái mâu thuẫn.
 
-### 5.3. Cấu hình hồ sơ
+### 5.3. Trường Người mở rộng
+
+- Vùng dự phòng là `J8:Z38`: hàng 8 chứa tiêu đề, hàng 9–38 chứa giá trị của từng người.
+- Người dùng gõ tiêu đề vào cột trống tiếp theo rồi nhập dữ liệu hoặc công thức. Không được chèn cột vào giữa `A:I`.
+- Ô nhập tay có định dạng Text (`@`). Nếu một cột là trường tính, ô chứa công thức phải dùng `General` để Excel thực thi công thức; kết quả đưa sang Word vẫn luôn chuyển thành text. Đây là ngoại lệ kỹ thuật duy nhất cho yêu cầu định dạng Text.
+- `Đồng bộ trường` tìm công thức đầu tiên trong cột và điền cùng mẫu công thức xuống 30 dòng bằng cơ chế tương đương `FillDown`. Dữ liệu nhập tay không được sao chép xuống dòng khác.
+- VBA quét các tiêu đề không rỗng từ trái sang phải, chuẩn hóa tiêu đề theo §13.2 và đọc kết quả hiện tại của từng ô. VBA không tính thay công thức của người dùng.
+- Không tự nới `ListObject` qua vùng Tài sản. Giới hạn cứng của vùng Người mở rộng là cột `Z` trong v0.3.0.
+
+### 5.4. Cấu hình hồ sơ
 
 | Trường | Giá trị |
 | --- | --- |
 | `HangTKToiDa` | Mặc định `2`, hợp lệ từ `0` đến `4` |
 | `BangMauHangTK` | Mã bảng màu đang chọn |
-| `PhienBanCauTruc` | `2.1.0` |
+| `PhienBanCauTruc` | `2.2.0` |
 | `NguoiIDTiepTheo` | Số dùng để sinh ID người tiếp theo |
 | `TaiSanIDTiepTheo` | Số dùng để sinh ID tài sản tiếp theo |
 | `SucChuaNguoi` | Sức chứa hiện tại của bảng nhập |
@@ -214,6 +243,14 @@ Không lưu trường nhập tay `TuChoi`. Đây là kết quả được engine
 ## 6. Quy ước ngày tháng
 
 Áp dụng cho mọi ô ngày trong workbook: ngày sinh, ngày chết, ngày cấp giấy tờ của người và ngày cấp sổ của tài sản.
+
+Quy tắc nền cho **mọi ô nhập nhìn thấy**, không chỉ ô ngày:
+
+- `NumberFormat = "@"` trước khi người dùng nhập hoặc dán dữ liệu.
+- VBA lấy nội dung gốc bằng `Value2`, chuyển thành chuỗi có kiểm soát và không dùng `.Text` làm nguồn chính, vì `.Text` phụ thuộc độ rộng cột và định dạng đang hiển thị.
+- Mã có số 0 đầu như `05`, `00123`, serial và số vào sổ phải được giữ đúng từng ký tự từ lúc nhập đến lúc xuất Word.
+- Chuỗi giống ngày như `1/2` vẫn là text; Excel không được tự đổi thành ngày.
+- Ô công thức là ngoại lệ: phải có định dạng `General` để công thức chạy. VBA đọc kết quả công thức rồi chuyển kết quả đó thành text khi lập dữ liệu xuất.
 
 ### 6.1. Dạng nhập hợp lệ
 
@@ -235,13 +272,13 @@ Ví dụ: sinh `1950`, chết `1999` phải hiển thị và xuất Word đúng 
 - Việc bổ sung ngày 01 và tháng 01 chỉ diễn ra trong trường `...Tinh` bị ẩn để phục vụ tính toán.
 - Một chuỗi mơ hồ như `02/03/2020` luôn được hiểu là ngày 02 tháng 03, không được đảo thành ngày 03 tháng 02.
 - Ô trống phải giữ nguyên trống ở cả dữ liệu gốc, dữ liệu hiển thị và dữ liệu tính. Không được sinh ngày giả như `01/01/1990`.
-- Ngày không tồn tại, ví dụ `31/02/1990`, là lỗi chặn xuất.
-- Ngày chết trước ngày sinh là lỗi chặn xuất.
+- Ngày không tồn tại, ví dụ `31/02/1990`, tạo kết quả tính lỗi nhưng không chặn thao tác xuất; xem §12.
+- Ngày chết trước ngày sinh được ghi vào danh sách chẩn đoán nhưng không chặn thao tác xuất.
 - Dữ liệu được dán từ Excel có thể là text, số ngày của Excel hoặc ngày thật. Nếu còn là text thì phải giữ nguyên text; engine đồng thời chuyển một bản ẩn thành ngày thật để tính.
 - Với dữ liệu người dùng gõ dạng text, trường `...Goc` phải giữ đúng chuỗi đã nhập, ví dụ `1950` hoặc `06/1950`.
 - Nếu dữ liệu dán tới chỉ còn số ngày nội bộ của Excel, định dạng chữ ban đầu không thể khôi phục chắc chắn; khi đó trường gốc lưu ngày chuẩn `dd/mm/yyyy` để tránh đoán sai.
 - Các phép tính tuổi, so sánh ngày và xác định đã chết chỉ dùng trường `...Tinh`, không tính trực tiếp từ text đang hiển thị.
-- Dữ liệu xuất trung gian phải có cả text dùng để hiển thị/Word và ngày thật dùng để tính. Word mặc định lấy text, không lấy ngày đã bổ sung trong cột ẩn.
+- Dữ liệu xuất trung gian phải có cả text dùng để hiển thị/Word và ngày thật dùng để tính. Word luôn lấy text đã chuẩn hóa một lần ở lớp xuất, không lấy ngày đã bổ sung trong cột ẩn.
 
 Mọi ô ngày dùng cùng một bộ xử lý. Không viết lại bộ phân tích ngày riêng cho tài sản.
 
@@ -287,7 +324,7 @@ Không chấp nhận:
 ## 8. Người nhận đất, từ chối và trạng thái
 
 - Cột `Nhận đất` hiển thị trực tiếp trên mỗi dòng và có thể chọn nhiều người.
-- Người đã chết không được nhận đất. Nếu một dòng vừa có ngày chết vừa được chọn nhận đất thì đó là lỗi chặn xuất.
+- Người đã chết không nên nhận đất. Nếu một dòng vừa có ngày chết vừa được chọn nhận đất thì ghi chẩn đoán rõ, nhưng vẫn cho phép xuất để người dùng nhìn kết quả và tự sửa.
 - Không suy luận người nhận theo Hàng TK hoặc quan hệ.
 - Cột `TrangThai` phải ẩn khỏi giao diện vì đây là kết quả kỹ thuật, không phải nội dung người dùng cần thao tác.
 - Engine vẫn phải tính trạng thái để chia nhóm xuất Word.
@@ -335,11 +372,12 @@ Quy tắc MVP:
 | `C5` | Chọn — Mẫu Word |
 | `B9:G38` | Nhập — họ tên, ngày sinh, ngày chết, số giấy tờ, ngày cấp, địa chỉ |
 | `H9:I38` | Chỉ bấm — Hàng TK, Nhận đất |
-| Ô giá trị của phiếu tài sản | Nhập hoặc chọn, xem §10.3 |
+| `J8:Z38` | Nhập tiêu đề, dữ liệu hoặc công thức của trường Người mở rộng |
+| Ô nhãn/giá trị dành sẵn của thẻ tài sản | Nhập hoặc chọn, xem §10.3 và §10.6 |
 | Ô giá trị của khối hồ sơ | Nhập hoặc chọn, xem §11 |
-| Cột `A`, cột `J:W` | Hệ thống, luôn khóa và ẩn |
+| Cột `A` và các ô giao diện không nêu trên | Hệ thống hoặc nhãn cố định, khóa |
 
-- Các sheet `CauHinh`, `KiemTra`, `XuatAn` được bảo vệ; `CauHinh` và `KiemTra` ẩn trong sử dụng bình thường, `XuatAn` ở trạng thái rất ẩn.
+- Các sheet `CauHinh`, `KiemTra`, `XuatAn` được bảo vệ; `CauHinh` và `KiemTra` ẩn trong sử dụng bình thường, `XuatAn` ở trạng thái rất ẩn. Toàn bộ dữ liệu kỹ thuật cũ ở `J:W` phải chuyển sang `XuatAn`.
 - Sheet `DanhMuc` ẩn; người dùng chỉ gặp nội dung của nó qua danh sách chọn.
 - Mật khẩu bảo vệ chỉ nhằm chống sửa nhầm, không được coi là biện pháp bảo mật dữ liệu.
 - VBA được phép cập nhật các ô khóa bằng chế độ `UserInterfaceOnly`, và phải khôi phục chế độ này mỗi lần mở workbook.
@@ -348,192 +386,156 @@ Quy tắc MVP:
 
 - Khi một ô thông thường thay đổi, VBA chỉ xử lý dòng vừa thay đổi và các dữ liệu thật sự liên quan.
 - Không quét lại toàn bộ ngày, trạng thái và nhánh sau mỗi ô họ tên, số giấy tờ hoặc địa chỉ.
-- Sửa một ô của phiếu tài sản chỉ xử lý phiếu đó, không quét lại bảng người.
-- Chỉ làm mới toàn bộ khi mở workbook, trước khi kiểm tra/xuất Word hoặc khi thao tác Hàng TK làm thay đổi cả nhánh.
+- Sửa một ô của thẻ tài sản chỉ xử lý thẻ đó, không quét lại bảng người.
+- Sửa một trường mở rộng chỉ xử lý cột Người hoặc thẻ Tài sản liên quan. Chỉ nút `Đồng bộ trường` mới quét toàn vùng mở rộng để sao chép cấu trúc.
+- Chỉ làm mới toàn bộ khi mở workbook, khi bấm `Đồng bộ trường`, trước khi kiểm tra/xuất Word hoặc khi thao tác Hàng TK làm thay đổi cả nhánh.
 - Việc nhập rồi chuyển sang ô tiếp theo không được tạo độ trễ dễ nhận thấy trên máy làm việc thông thường.
 
 ---
 
-## 10. Bước 2 — Nhập tài sản theo phiếu dọc
+## 10. Bước 2 — Nhập tài sản theo thẻ dọc
 
-### 10.1. Hình dạng phiếu
+### 10.1. Hình dạng thẻ
 
-Mỗi tài sản là một phiếu dọc: nhãn ở cột `B`, giá trị ở cột `C` (gộp `C:G` cho các trường dài như địa chỉ và nguồn gốc). Phiếu đọc từ trên xuống, không cuộn ngang.
+Mỗi tài sản là một thẻ dọc hai cột: nhãn ở trái, giá trị ở phải. Ba thẻ có cùng hàng và đặt cạnh nhau:
 
 ```text
-────────────────────────────────────────────────────
- TÀI SẢN 1
-────────────────────────────────────────────────────
- Loại sổ             │ Giấy chứng nhận quyền sử dụng đất
- Số phát hành/Serial │ CS 123456
- Số vào sổ           │ CS 00123
- Số thửa             │ 45
- Số tờ bản đồ        │ 12
- Địa chỉ đất         │ Thôn ..., xã ..., tỉnh ...
- Diện tích (m²)      │ 250
- Hình thức sử dụng   │ Sử dụng riêng
- Loại đất            │ Đất ở nông thôn
- Thời hạn sử dụng    │ Lâu dài
- ONT (m²)            │ 120
- CLN (m²)            │ 130
- NTS (m²)            │
- LUC (m²)            │
- Nguồn gốc           │ Nhà nước công nhận quyền sử dụng đất
- Ngày cấp sổ         │ 12/05/2015
- Cơ quan cấp sổ      │ UBND huyện ...
- Ghi chú             │
-────────────────────────────────────────────────────
+AA        AB            AC        AD            AE        AF
+TÀI SẢN 1               TÀI SẢN 2               TÀI SẢN 3
+Loại sổ  | giá trị      Loại sổ  | giá trị      Loại sổ  | giá trị
+Serial   | giá trị      Serial   | giá trị      Serial   | giá trị
+...                     ...                     ...
+Ghi chú  | giá trị      Ghi chú  | giá trị      Ghi chú  | giá trị
+trường tự thêm          trường tự thêm          trường tự thêm
 ```
 
-Ba phiếu có hình dạng giống nhau, nhãn `TÀI SẢN 1`, `TÀI SẢN 2`, `TÀI SẢN 3`. Phiếu 2 và 3 để trống khi hồ sơ chỉ có một thửa.
+Các ô giá trị dài bật `WrapText`. Không gộp ô giữa hai thẻ. Thẻ 2 và 3 để trống khi hồ sơ chỉ có một thửa.
 
-### 10.2. Trường của một phiếu
+### 10.2. Trường của một thẻ
 
-| Trường | Nhập kiểu | Placeholder Word tài sản 1 |
+| Trường | Nhập kiểu trên giao diện | Placeholder Word tài sản 1 |
 | --- | --- | --- |
-| `LoaiSo` | Chọn từ danh mục | `[Loại sổ]` |
-| `Serial` | Text | `[Serial]` |
-| `SoVaoSo` | Text | `[Số vào sổ]` |
-| `SoThua` | Text | `[Số thửa]` |
-| `SoTo` | Text | `[Số tờ]` |
-| `DiaChiDat` | Text dài | `[Địa chỉ đất]` |
-| `DienTich` | Số | `[Diện tích]` |
-| `HinhThucSuDung` | Chọn từ danh mục | `[Hình thức sử dụng]` |
-| `LoaiDat` | Chọn từ danh mục | `[Loại đất]` |
-| `ThoiHan` | Text | `[Thời hạn 1]` |
-| `ONT` | Số | `[ONT]` |
-| `CLN` | Số | `[CLN]` |
-| `NTS` | Số | `[NTS]` |
-| `LUC` | Số | `[LUC]` |
-| `NguonGoc` | Text dài | `[Nguồn gốc]` |
-| `NgayCapSo` | Ngày theo §6 | `[Ngày cấp sổ]` |
-| `CoQuanCapSo` | Chọn từ danh mục | `[Cơ quan cấp sổ]` |
-| `GhiChu` | Text dài | không xuất |
+| `LoaiSo` | Chọn từ danh mục, lưu text | `{{loaiso1}}` |
+| `Serial` | Text | `{{serial1}}` |
+| `SoVaoSo` | Text | `{{sovaoso1}}` |
+| `SoThua` | Text | `{{sothua1}}` |
+| `SoTo` | Text | `{{soto1}}` |
+| `DiaChiDat` | Text dài | `{{diachidat1}}` |
+| `DienTich` | Text; VBA đổi sang số khi cần tính | `{{dientich1}}` |
+| `HinhThucSuDung` | Chọn từ danh mục, lưu text | `{{hinhthucsudung1}}` |
+| `LoaiDat` | Chọn từ danh mục, lưu text | `{{loaidat1}}` |
+| `ThoiHan` | Text | `{{thoihan1}}` |
+| `ONT` | Text; VBA đổi sang số khi cần tính | `{{ont1}}` |
+| `CLN` | Text; VBA đổi sang số khi cần tính | `{{cln1}}` |
+| `NTS` | Text; VBA đổi sang số khi cần tính | `{{nts1}}` |
+| `LUC` | Text; VBA đổi sang số khi cần tính | `{{luc1}}` |
+| `NguonGoc` | Text dài | `{{nguongoc1}}` |
+| `NgayCapSo` | Text ngày theo §6 | `{{ngaycapso1}}` |
+| `CoQuanCapSo` | Chọn từ danh mục, lưu text | `{{coquancapso1}}` |
+| `GhiChu` | Text dài | `{{ghichu1}}` |
 
-Hậu tố Word: tài sản 1 không hậu tố, tài sản 2 hậu tố ` 2`, tài sản 3 hậu tố ` 3`. Ví dụ `[Serial 2]`, `[Diện tích 3]`.
+Tài sản 2 và 3 đổi số cuối thành `2` và `3`, ví dụ `{{serial2}}`, `{{dientich3}}`. Số cuối luôn là số thẻ trên giao diện; không dồn lại khi một thẻ phía trước để trống.
 
-### 10.3. Dữ liệu ẩn của phiếu
+### 10.3. Dữ liệu ẩn của thẻ
 
-Mỗi phiếu có ô ẩn trong vùng cột `J:W` cùng hàng với phiếu:
+Mỗi thẻ có một dòng tương ứng trong bảng hệ thống `tblTaiSan` trên sheet rất ẩn `XuatAn`:
 
 | Trường ẩn | Ý nghĩa |
 | --- | --- |
-| `TaiSanID` | ID bất biến do hệ thống sinh, dạng `TS001`; sinh khi phiếu bắt đầu có dữ liệu |
+| `TaiSanID` | ID bất biến do hệ thống sinh, dạng `TS001`; sinh khi thẻ bắt đầu có dữ liệu |
 | `NgayCapSoGoc` | Chuỗi người dùng đã nhập |
 | `NgayCapSoTinh` | Ngày thật của Excel dùng để so sánh |
-| `CoDuLieu` | Phiếu có dữ liệu hay không, xem §10.4 |
+| `CoDuLieu` | Thẻ có dữ liệu hay không, xem §10.4 |
 
-`TaiSanID` không hiển thị và người dùng không cần nhớ. Lý do cần ID ổn định: phiếu có thể bị xóa và nhập lại, và bảng xuất ẩn phải tham chiếu đúng phiếu.
+`TaiSanID` không hiển thị và người dùng không cần nhớ. Dòng kỹ thuật liên kết bằng số thẻ cố định 1–3 và `TaiSanID`, không liên kết bằng địa chỉ ô cứng.
 
-Nhãn `Tài sản 1`, `Tài sản 2`, `Tài sản 3` chỉ là số thứ tự hiển thị và số thứ tự hậu tố Word; không phải khóa liên kết.
+Nhãn `Tài sản 1`, `Tài sản 2`, `Tài sản 3` là số thứ tự hiển thị đồng thời là số cuối của placeholder tĩnh; không phải khóa liên kết.
 
-### 10.4. Phiếu có dữ liệu
+### 10.4. Thẻ có dữ liệu
 
-Một phiếu được coi là **có dữ liệu** khi bất kỳ trường nào trong bốn trường sau khác rỗng: `LoaiSo`, `Serial`, `SoThua`, `DiaChiDat`.
+Một thẻ được coi là **có dữ liệu** khi bất kỳ ô giá trị chuẩn hoặc mở rộng nào có kết quả khác rỗng. Chỉ có nhãn trường mà chưa có giá trị thì chưa tính là có dữ liệu.
 
-Phiếu không có dữ liệu bị bỏ qua hoàn toàn: không sinh `TaiSanID`, không đưa vào bảng xuất, không bị kiểm tra trường bắt buộc.
+Thẻ không có dữ liệu không sinh `TaiSanID`; dòng kỹ thuật tương ứng vẫn tồn tại nhưng toàn bộ giá trị xuất của thẻ là rỗng.
 
-Phiếu chỉ có `GhiChu` hoặc chỉ có `DienTich` không được coi là có dữ liệu — đó là dấu hiệu nhập dở, và §12.2 sinh cảnh báo cho trường hợp này.
+Thẻ chỉ có một trường lẻ vẫn được xuất đúng trường đó; `KiemTra` có thể nêu đây là dữ liệu nhập dở nhưng không chặn xuất.
 
 ### 10.5. Bảng xuất ẩn `tblTaiSan`
 
-VBA đọc ba phiếu rồi dựng `tblTaiSan` trên sheet `XuatAn`:
+VBA đọc ba thẻ rồi dựng `tblTaiSan` trên sheet `XuatAn`:
 
-- Một dòng cho mỗi phiếu có dữ liệu, theo thứ tự phiếu 1 → 2 → 3.
-- Cột `STTTaiSan` được đánh lại liên tục từ 1, không bỏ số. Nếu chỉ phiếu 1 và phiếu 3 có dữ liệu thì phiếu 3 nhận `STTTaiSan = 2` và **xuất bằng hậu tố ` 2`**.
-- Cột `TaiSanID` giữ nguyên ID của phiếu.
+- Ba dòng cố định tương ứng thẻ 1, 2, 3; cột `SoTheTaiSan` không đổi.
+- Cột `TaiSanID` giữ nguyên ID của thẻ có dữ liệu; thẻ trống có ID rỗng.
+- Các cột trường được tạo hoặc tìm theo tên nhãn đã chuẩn hóa, không theo số cột cố định.
 - Bảng chỉ do VBA tạo/refresh trước khi kiểm tra và trước khi xuất. Người dùng không nhập vào bảng này.
 
-Hệ quả cần nhớ: hậu tố Word đi theo `STTTaiSan` liên tục, không theo số phiếu trên giao diện. Cách này để mẫu chỉ chứa một tài sản vẫn xuất được khi người dùng vô tình bỏ trống phiếu 1.
+VBA đọc giá trị bằng `Value2`. Ô nhập là Text nên giữ được số 0 đầu; ô công thức được đọc kết quả. Trước khi đưa vào Word, mọi giá trị được đổi thành text đúng một lần theo §13.4.
 
-### 10.6. Thêm và xóa phiếu
+### 10.6. Thêm trường, đồng bộ và xóa thẻ
 
-- Không có lệnh thêm phiếu trong MVP. Ba phiếu luôn tồn tại, dùng bằng cách điền vào.
-- Xóa một tài sản là xóa trắng các ô giá trị của phiếu đó. VBA phát hiện phiếu trở về trạng thái không có dữ liệu và xóa `TaiSanID`, `NgayCapSoGoc`, `NgayCapSoTinh` của phiếu.
-- Nếu về sau cần nhiều hơn ba tài sản, thêm phiếu bằng cách chèn khối 20 hàng theo đúng bố cục §4, đồng thời mẫu Word phải có hậu tố tương ứng. Không chuyển vùng này thành bảng ngang.
+- Ba thẻ luôn tồn tại; v0.3.0 không có lệnh thêm thẻ thứ tư.
+- Sau 18 trường chuẩn, mỗi thẻ dành các hàng còn lại đến hàng 38 làm vùng trường mở rộng. Không chèn thêm hàng giữa các trường chuẩn.
+- Người dùng gõ nhãn mới ở hàng trống tiếp theo của **thẻ 1**, rồi nhập giá trị mẫu hoặc công thức nếu cần.
+- Khi bấm `Đồng bộ trường`, VBA sao chép nhãn mới sang đúng hàng của thẻ 2 và 3. Nếu ô giá trị của thẻ 1 là công thức, sao chép công thức theo tham chiếu tương đối sang hai thẻ; nếu là dữ liệu nhập tay, giữ ô giá trị thẻ 2 và 3 trống.
+- Nếu nhãn ba thẻ khác nhau, thẻ 1 là nguồn chuẩn và thao tác đồng bộ phải hỏi xác nhận trước khi ghi đè **nhãn hoặc công thức**, nhưng không được ghi đè dữ liệu nhập tay.
+- Xóa một tài sản là xóa trắng các ô giá trị của thẻ đó. VBA xóa dữ liệu kỹ thuật tương ứng khi thẻ trở về trạng thái không có dữ liệu.
 
 ## 11. Bước 3 — Thông tin phụ của hồ sơ
 
-Khối cuối sheet `NhapLieu`, nhãn ở cột `B`, giá trị ở cột `C`.
+Khối Hồ sơ dùng từng cặp ô `nhãn | giá trị`, cùng nguyên tắc với thẻ Tài sản nhưng mỗi trường chỉ có một giá trị cho cả hồ sơ.
 
 | Trường | Nhập kiểu | Placeholder Word |
 | --- | --- | --- |
-| `NiemYet` | Text | `[Niêm Yết]` |
-| `SoCongChung` | Text | `[Số công chứng]` |
-| `NguoiUyQuyen` | Chọn từ danh mục | `[Người ủy quyền]` |
-| `NguoiUyQuyen2` | Chọn từ danh mục | `[Người ủy quyền2]` |
+| `NiemYet` | Text | `{{niemyet}}` |
+| `SoCongChung` | Text | `{{socongchung}}` |
+| `NguoiUyQuyen` | Chọn từ danh mục, lưu text | `{{nguoiuyquyen}}` |
+| `NguoiUyQuyen2` | Chọn từ danh mục, lưu text | `{{nguoiuyquyen2}}` |
 
 Quy tắc:
 
-- `NiemYet` là xã hoặc địa bàn niêm yết văn bản. Bắt buộc khi mẫu đang chọn có `[Niêm Yết]`.
+- `NiemYet` là xã hoặc địa bàn niêm yết văn bản.
 - `SoCongChung` là số công chứng của văn bản. Để trống thì xuất chuỗi rỗng, không xuất `0`.
 - `NguoiUyQuyen` và `NguoiUyQuyen2` chọn từ danh mục người ủy quyền (§14.3). Hồ sơ chỉ có một người ủy quyền thì để trống trường thứ hai.
-- Không thêm `GiaChuyenNhuong` và `SoDienThoai` vào MVP. Hai trường này có trong workbook cũ nhưng mẫu `1. PCDS .docx` không dùng; thêm khi có mẫu thật cần đến, cùng lúc bổ sung placeholder.
+- Khối có ít nhất 8 hàng trống dự phòng. Người dùng gõ nhãn mới vào hàng trống tiếp theo rồi nhập dữ liệu hoặc công thức ở ô giá trị.
+- Trường Hồ sơ là giá trị đơn nên placeholder không có số cuối, trừ khi chính nhãn trường đã có số phân biệt như `NguoiUyQuyen2`.
+- VBA quét nhãn không rỗng và đọc ô giá trị bên cạnh. Thêm trường Hồ sơ không cần sửa VBA.
 
 ---
 
 ## 12. Bước 4 — Kiểm tra trước khi xuất
 
-Kiểm tra chạy khi bấm `Kiểm tra dữ liệu` và tự chạy lại trước khi xuất. Kết quả ghi ra sheet `KiemTra`. Mọi thông báo phải ghi rõ STT và họ tên hoặc số phiếu tài sản; khi có thể, cho phép bấm để nhảy tới ô lỗi.
+`Kiểm tra dữ liệu` là công cụ chẩn đoán tùy chọn. Nó giúp người dùng nhìn nhanh các điểm đáng nghi, nhưng **không phải điều kiện để bấm Xuất Văn bản** và không tự chạy như một cổng chặn trước khi xuất.
 
-### 12.1. Lỗi chặn xuất
+### 12.1. Nội dung chẩn đoán
 
-Người và nhánh:
+Danh sách ngắn gọn có thể gồm:
 
-- `HangTKToiDa` nằm ngoài `0..4`.
-- Có `HangTK` lớn hơn mức tối đa.
-- Có Hàng TK bị nhảy cấp.
-- H0/H1 có `ParentNguoiID`, hoặc dòng từ H2 trở đi thiếu cha, tự trỏ, trỏ sai người hay không ở Hàng TK liền trước.
-- Có chu kỳ trong chuỗi `ParentNguoiID`.
-- Người đã chết vẫn có `NhanDat = True`.
-- Cùng một `NguoiID` xuất hiện ở nhiều dòng.
-- Không có người nào được chọn `NhanDat`.
+- Hàng TK ngoài giới hạn, nhảy cấp, thiếu liên kết cha hoặc có chu kỳ.
+- Người đã chết vẫn được chọn nhận đất; không có người nhận đất; nghi trùng người.
+- Ngày sai định dạng, ngày không tồn tại hoặc ngày chết trước ngày sinh.
+- Tài sản thiếu trường thường cần, diện tích không đổi được sang số, số âm, hoặc tổng loại đất lệch diện tích.
+- Mẫu Word có ít slot hơn số người hoặc số tài sản đang có.
+- Tiêu đề/nhãn sau chuẩn hóa bị trùng nhau.
 
-Ngày tháng, áp dụng cho cả ngày của người và ngày cấp sổ:
+Mỗi dòng chẩn đoán nên ghi STT người hoặc số thẻ tài sản và vị trí ô để dễ sửa. Không dựng nhiều hộp thoại cảnh báo nối tiếp nhau.
 
-- Ngày sai định dạng hoặc ngày không tồn tại.
-- Ngày chết trước ngày sinh.
+### 12.2. Quy tắc không chặn xuất
 
-Tài sản:
+- Giá trị ô lỗi Excel như `#VALUE!`, `#REF!`, `#N/A` được đưa nguyên ký hiệu lỗi sang Word.
+- Trường đã biết nhưng ô để trống được thay bằng chuỗi rỗng.
+- Placeholder đúng cú pháp nhưng không tìm thấy trường nguồn được thay bằng `#KHONG_CO_TRUONG:<ten>#`.
+- Hai tiêu đề/nhãn khác nhau nhưng cùng chuẩn hóa thành một tên được thay bằng `#TRUNG_TEN:<ten>#` cho placeholder bị ảnh hưởng.
+- Dữ liệu đáng nghi vẫn được xuất. Sau khi xuất có thể hiện **một** thông báo ngắn về tổng số dấu lỗi đã ghi vào Word, không hiện từng cảnh báo riêng.
 
-- Không có phiếu tài sản nào có dữ liệu.
-- Phiếu có dữ liệu nhưng thiếu trường bắt buộc: `LoaiSo`, `SoThua`, `DiaChiDat`, `DienTich`, `LoaiDat`.
-- `DienTich`, `ONT`, `CLN`, `NTS`, `LUC` không phải số hoặc là số âm.
-- Tổng `ONT + CLN + NTS + LUC` lớn hơn `DienTich` của cùng phiếu.
+Chỉ dừng xuất khi không thể tạo kết quả kỹ thuật, ví dụ: không mở được mẫu Word, đường dẫn không tồn tại, không tạo được phiên Word, không ghi được file hoặc tài liệu Word bị hỏng. Đây là lỗi hạ tầng, không phải lỗi nội dung hồ sơ.
 
-Thông tin phụ và mẫu:
+### 12.3. Sức chứa mẫu tĩnh
 
-- Chưa chọn mẫu Word, hoặc đường dẫn mẫu không tồn tại.
-- Mẫu đang chọn có `[Niêm Yết]` nhưng `NiemYet` để trống.
-- Dữ liệu vượt sức chứa của mẫu đang chọn, xem §12.3.
-- Sau khi thay, còn placeholder của mẫu chưa được thay.
+Placeholder tĩnh có số cuối chỉ dùng được đến số slot đã đặt trong mẫu Word. Ví dụ mẫu có `{{ten1}}` đến `{{ten10}}` thì người thứ 11 không có vị trí để xuất.
 
-### 12.2. Cảnh báo
-
-- Dòng chủ đất thứ hai để trống: hiểu là hồ sơ một chủ đất, không coi là lỗi.
-- Có hai dòng nghi cùng một người do trùng họ tên và ngày sinh.
-- Nhánh có người đã chết nhưng chưa có dòng ở Hàng TK kế tiếp.
-- Người từ chối chưa được chia nhóm: dùng `TC_DEFAULT` ở MVP.
-- Phiếu tài sản có vài trường lẻ nhưng không đạt điều kiện có dữ liệu ở §10.4 — nghi nhập dở.
-- Phiếu 1 để trống trong khi phiếu 2 hoặc 3 có dữ liệu — hậu tố Word sẽ dồn lên, xem §10.5.
-- Tổng `ONT + CLN + NTS + LUC` nhỏ hơn `DienTich`: phần diện tích còn lại chưa được phân loại.
-- `NguoiUyQuyen` để trống trong khi mẫu có `[Người ủy quyền]`.
-
-### 12.3. Sức chứa mẫu
-
-Mẫu Word là template tĩnh: khi một slot không có dữ liệu, macro chỉ thay bằng rỗng và **không tự xóa** đoạn văn, dòng danh sách hay dòng bảng tương ứng. Ngược lại, dữ liệu vượt số slot của mẫu sẽ bị bỏ âm thầm nếu không kiểm tra.
-
-Vì vậy kiểm tra phải so hai chiều:
-
-```text
-số người có dữ liệu   <= SucChuaNguoiMau
-số phiếu có dữ liệu   <= SucChuaTaiSanMau
-```
-
-- Vượt là lỗi chặn xuất, thông báo nêu rõ sức chứa của mẫu và số lượng hồ sơ đang có.
-- `1. PCDS .docx`: `SucChuaNguoiMau = 10`, `SucChuaTaiSanMau = 1`.
-- Hai giá trị này gắn với mẫu đang chọn, cập nhật khi đổi ô `Mẫu Word`.
-- Thiếu dữ liệu so với sức chứa **không** phải lỗi; các slot dư xuất chuỗi rỗng.
+- `KiemTra` nêu rõ sức chứa mẫu và số dữ liệu hiện có, nhưng không chặn xuất.
+- Slot có trong mẫu nhưng không có dữ liệu được thay bằng chuỗi rỗng.
+- Dữ liệu vượt slot không được tự ghép vào một slot khác và không được làm đổi số cuối.
+- Placeholder danh sách/khối lặp là một loại khác, không dùng giới hạn slot này và chưa thuộc phạm vi v0.3.0; xem §13.3 và §15.
 
 ## 13. Bước 5 — Xuất Word
 
@@ -548,58 +550,69 @@ Lớp lập dữ liệu xuất tạo ít nhất các nhóm sau:
 | `NguoiNhanDat` | Dòng còn sống và `NhanDat = True` |
 | `CacNhomTuChoi` | Collection tạo theo §8.1 |
 | `CayNhanh` | Nhóm gốc H0, các dòng H1 trực thuộc nhóm gốc, và `NguoiID`, `HangTK`, `ParentNguoiID` từ H2 trở đi |
-| `TaiSan` | `tblTaiSan` theo §10.5, sắp theo `STTTaiSan` |
+| `TaiSan` | Ba dòng `tblTaiSan` theo `SoTheTaiSan = 1..3` ở §10.5 |
 | `HoSo` | Các trường ở §11 |
 
 Dữ liệu xuất trung gian có các cột ngày hiển thị, ngày gốc, ngày dùng để tính và `TuoiLucChet`. Template Word không được đọc màu ô, vị trí dòng 1–2 hoặc suy luận nhánh từ STT.
 
-### 13.2. Ánh xạ slot người của mẫu cũ
+### 13.2. Placeholder tĩnh
 
-Mẫu hiện có dùng placeholder đánh số `n = 1..10`. Quy tắc gán slot:
+Toàn hệ thống chỉ dùng một cặp dấu `{{...}}`. Không còn cú pháp ngoặc vuông và không duy trì parser tương thích ngược.
+
+Tên placeholder tĩnh có các quy tắc:
+
+- Viết thường, không dấu, viết liền; chỉ gồm chữ `a-z` và số `0-9`.
+- Không có dấu cách, dấu chấm, gạch dưới hoặc ký tự tiếng Việt.
+- Trường lặp theo Người hoặc Tài sản có số thứ tự gắn ngay cuối tên: `{{tentruong1}}`, `{{tentruong2}}`.
+- Trường chỉ có một giá trị cho cả Hồ sơ không cần số cuối: `{{niemyet}}`, `{{socongchung}}`.
+
+Tên công khai của các trường Người chuẩn:
+
+| Trường nguồn | Gốc placeholder | Ví dụ slot 1 |
+| --- | --- | --- |
+| `HoTen` | `ten` | `{{ten1}}` |
+| `NgaySinh` | `namsinh` | `{{namsinh1}}` |
+| `NgayChet` | `namchet` | `{{namchet1}}` |
+| `SoGiayTo` | `cccd` | `{{cccd1}}` |
+| `NgayCap` | `ngaycap` | `{{ngaycap1}}` |
+| `DiaChi` | `diachi` | `{{diachi1}}` |
+| `LoaiCC` | `loaicc` | `{{loaicc1}}` |
+| `NoiCapCC` | `noicapcc` | `{{noicapcc1}}` |
+| `NhanDiaChi` | `thuongtru` | `{{thuongtru1}}` |
+
+Mẫu tĩnh hiện có dùng slot người `n = 1..10`. Quy tắc gán slot giữ nguyên:
 
 ```text
 slot 1, 2   = chủ đất theo STTNhap; thiếu chủ đất thứ hai thì slot 2 rỗng
 slot 3..n   = những người còn lại có dữ liệu, không phải chủ đất, theo STTNhap
 ```
 
-Mỗi slot cấp các placeholder:
+Với trường mở rộng, VBA lấy gốc placeholder bằng cách chuẩn hóa chính tiêu đề/nhãn người dùng đã gõ: đổi `đ` thành `d`, bỏ dấu tiếng Việt, bỏ khoảng trắng và ký tự không phải chữ/số, rồi chuyển về chữ thường. Ví dụ `Số điện thoại` thành `sodienthoai`, từ đó sinh `{{sodienthoai4}}` cho người slot 4.
 
-```text
-[Tên n] [Năm sinh n] [CCCD n] [Ngày cấp n] [Địa chỉ n]
-[Loại CC n] [Nơi cấp CC n] [Thường trú n]
-```
+Vì placeholder tĩnh không có namespace, tên sau chuẩn hóa phải duy nhất trong toàn bộ dữ liệu xuất. Nếu hai nguồn cùng sinh một token, dùng dấu lỗi trùng tên ở §12.2; không âm thầm chọn nguồn đầu tiên.
 
-Slot 1 và 2 có thêm `[Năm chết]` và `[Năm chết 2]` — đúng tên cũ, không phải `[Năm chết 1]`.
+### 13.3. Placeholder động để issue riêng
 
-Câu chữ của mẫu cũ giả định người số 3 là người nhận và người 4 trở đi tặng cho. Giả định đó **không còn đúng** vì người nhận được chọn bằng `NhanDat` trên từng dòng. Đoạn thỏa thuận trong mẫu phải viết lại theo nhóm, không theo số slot:
+Placeholder danh sách, khối lặp hoặc bảng là loại có logic bên trong. Ví dụ nghiệp vụ gồm danh sách người nhận đất, nhóm từ chối và cây nhánh. Loại này **chưa được triển khai hoặc chốt cú pháp trong v0.3.0**.
 
-```text
-Người nhận quyền sử dụng đất:  {{nguoi_nhan_dat.danh_sach}}
-Những người từ chối nhận di sản: {{nhom_tu_choi.TC_DEFAULT.danh_sach}}
-```
-
-Bảng nhân thân trong mẫu vẫn dùng slot đánh số như trên.
-
-### 13.3. Chiến lược placeholder kép
-
-Giữ đồng thời hai cú pháp:
-
-- Placeholder cũ dạng ngoặc vuông: `[Tên 4]`, `[CCCD 4]`, `[Serial 2]`. Cần để các mẫu Word hiện có chạy được ngay.
-- Namespace mới dạng `{{ }}`: `{{nguoi_nhan_dat.danh_sach}}`, `{{nhom_tu_choi.TC_DEFAULT.danh_sach}}`, `{{cay_nhanh.danh_sach}}`, `{{ho_so.niem_yet}}`, `{{tai_san.2.serial}}`.
-
-Quy tắc parse namespace mới: đoạn cuối là tên trường, các đoạn số ở giữa là định danh đối tượng.
-
-Block lặp động trong Word (danh sách người không giới hạn) để giai đoạn sau. Đến khi đó, số slot của mẫu vẫn là giới hạn cứng và §12.3 vẫn là lớp chặn.
+- Không đưa token có dấu chấm hoặc gạch dưới vào parser placeholder tĩnh.
+- Không cố thay placeholder động bằng chuỗi rỗng. Khi gặp token động chưa hỗ trợ, ghi dấu rõ `#CHUA_HO_TRO_DONG:<ten>#` trong Word.
+- Việc định nghĩa nguồn dữ liệu, mẫu câu một phần tử, dấu nối và cách xử lý danh sách rỗng phải được chốt trong một issue/SOT riêng trước khi triển khai.
+- Placeholder động không bị giới hạn bởi số slot tĩnh tại §12.3 sau khi được triển khai.
 
 ### 13.4. Quy tắc thay thế
 
-- Giá trị trống xuất chuỗi rỗng. Không xuất `0`, không xuất `00/01/1900`.
+- VBA lập một bảng tra `token -> text` bằng cách quét tiêu đề/nhãn, không bằng số cột hardcode.
+- Giá trị trống xuất chuỗi rỗng. Số `0` do người dùng thật sự nhập phải xuất `0`; chỉ ngày kỹ thuật rỗng mới không được biến thành `00/01/1900`.
 - Ngày xuất theo text người dùng đã nhập (§6), không dùng cột `...Tinh`.
+- Giá trị nhập lấy bằng `Value2`; kết quả cuối được đổi sang chuỗi một lần trong lớp xuất. Không dùng `.Text` làm nguồn dữ liệu vì cột hẹp có thể trả về `####`.
+- Ô công thức hợp lệ xuất kết quả đang tính. Ô công thức lỗi xuất nguyên mã lỗi Excel như `#VALUE!` hoặc `#REF!`.
 - Nội dung có xuống dòng phải đổi sang ký tự newline của Word.
 - Chuỗi dài hơn 254 ký tự phải dùng `TypeText` thay vì `Replacement.Text`, do giới hạn của Find/Replace.
-- Placeholder phải giữ đúng cú pháp; tên trong placeholder phải trùng chính xác tên trường nguồn.
+- Parser chỉ nhận token tĩnh bắt đầu bằng chữ thường, theo sau chỉ là chữ thường hoặc số, tất cả nằm trong `{{...}}`; token sai cú pháp được đổi thành `#PLACEHOLDER_SAI:<noi_dung>#`, không đoán tên.
 - Không để một placeholder bị tách thành nhiều run trong Word, vì Find/Replace sẽ không nhận diện được.
-- Thêm field mới phải làm đủ ba việc: thêm trường nguồn, tạo dữ liệu tương ứng, thêm placeholder cùng tên vào Word.
+- Thêm trường mới chỉ cần: gõ tiêu đề/nhãn, nhập dữ liệu hoặc công thức, bấm `Đồng bộ trường` nếu cần nhân công thức/cấu trúc, rồi đặt placeholder đã chuẩn hóa vào Word. Không sửa VBA.
+- Trước khi phát hành v0.3.0, mọi mẫu trong `templates/word/`, parser VBA, kiểm tra placeholder và script kiểm kê phải chuyển hoàn toàn sang `{{...}}`; không để hai cú pháp chạy song song.
 
 ### 13.5. An toàn phiên Office
 
@@ -612,20 +625,33 @@ Block lặp động trong Word (danh sách người không giới hạn) để g
 - Không tự lưu workbook khi đóng.
 - Tên file đầu ra có kiểm soát ký tự đặc biệt và chống trùng bằng hậu tố `_1`, `_2`.
 
+### 13.6. Cổng chuyển đổi sang cú pháp duy nhất
+
+Trước khi phát hành v0.3.0 phải hoàn thành đồng thời:
+
+- `modExportData.bas` tạo duy nhất bảng tra token tĩnh theo §13.2 và nhận cả trường chuẩn lẫn trường mở rộng.
+- `modWordExport.bas` là nơi duy nhất quét và thay token `{{...}}` trong các Word Range.
+- `modXuatWord.bas` chỉ điều phối chọn mẫu, gọi lập dữ liệu, xuất file và báo tổng số dấu lỗi; không giữ một parser thứ hai.
+- `scripts/inspect-word-placeholders.ps1` kiểm kê token `{{...}}`, báo token sai quy tắc, token trùng và mọi placeholder ngoặc vuông còn sót.
+- Toàn bộ file `.docx` trong `templates/word/` được kiểm kê và chuyển token tĩnh sang cú pháp mới. Mẫu `.doc` cũ phải được chuyển sang `.docx` hoặc ghi rõ chưa được hỗ trợ; không âm thầm bỏ qua.
+- Cổng phát hành phải thất bại nếu code, metadata tra cứu hoặc mẫu Word còn placeholder ngoặc vuông. Không giữ chế độ parser kép bằng cờ cấu hình.
+
 ## 14. Danh mục tra cứu
 
-Sheet `DanhMuc` ẩn, chứa các danh sách phục vụ ô chọn và tra cứu. Người dùng không nhập trực tiếp trong quá trình làm hồ sơ.
+Sheet `DanhMuc` ẩn, chứa các bảng nguồn phục vụ ô chọn và tra cứu. Người dùng làm hồ sơ không nhập trực tiếp tại đây.
 
 ### 14.1. Các danh mục
 
 | Danh mục | Dùng cho |
 | --- | --- |
-| Loại sổ | `LoaiSo` của phiếu tài sản |
+| Loại sổ | `LoaiSo` của thẻ tài sản |
 | Loại đất | `LoaiDat`; gồm đất ở đô thị, đất ở nông thôn, cây lâu năm, nuôi trồng thủy sản, trồng lúa |
 | Hình thức sử dụng | `HinhThucSuDung`; sử dụng riêng, sử dụng chung |
 | Cơ quan cấp sổ | `CoQuanCapSo` |
 | Loại giấy tờ → nơi cấp → nhãn địa chỉ | §14.2 |
 | Người ủy quyền | `NguoiUyQuyen`, `NguoiUyQuyen2` |
+| Tờ bản đồ 2025 | Tra cứu thủ công số tờ sau điều chỉnh |
+| Sáp nhập thôn | Tra cứu thủ công thôn/xóm cũ và mới |
 
 ### 14.2. Quy tắc loại giấy tờ
 
@@ -639,11 +665,24 @@ NgayCapTinh >= 01/07/2024    -> "Căn cước"
 
 `NoiCapCC` tra theo `LoaiCC` trong danh mục. `NhanDiaChi` suy theo `LoaiCC`: `Thường trú tại` hoặc `Cư trú tại`.
 
-Ba giá trị này do VBA ghi vào cột ẩn khi `NgayCap` của dòng đó thay đổi; không quét lại toàn bảng.
+Ba giá trị này do VBA ghi vào bảng kỹ thuật Người trên `XuatAn` khi `NgayCap` của dòng đó thay đổi; không quét lại toàn bảng.
 
 ### 14.3. Hai bảng tra cứu chưa tự động
 
-`Tờ bản đồ 2025` (điều chỉnh số tờ sau sáp nhập) và `Sáp nhập thôn` (thôn/xóm huyện Ý Yên) là tra cứu thủ công. Chưa nối vào luồng nhập trong phiên bản này.
+`Tờ bản đồ 2025` (điều chỉnh số tờ sau sáp nhập) và `Sáp nhập thôn` (thôn/xóm huyện Ý Yên) là hai `ListObject` riêng trên `DanhMuc`. Trong v0.3.0 chúng chỉ để người bảo trì tra cứu, chưa tự điền vào vùng nhập.
+
+### 14.4. Phân loại dữ liệu kỹ thuật
+
+| Loại dữ liệu | Nơi đặt | Ai được sửa |
+| --- | --- | --- |
+| Danh sách chọn và bảng tra cứu dùng chung | `DanhMuc`, mỗi nguồn là một `ListObject` có tên ổn định | Người bảo trì workbook; không sửa trong lúc làm hồ sơ |
+| Cấu hình phiên bản, đường dẫn mẫu, sức chứa | `CauHinh` | VBA hoặc người bảo trì |
+| Ngày tính, ID, trạng thái, bảng xuất trung gian | `XuatAn` rất ẩn | Chỉ VBA |
+| Tiêu đề/nhãn và giá trị trường mở rộng của hồ sơ hiện tại | `NhapLieu` | Người dùng làm hồ sơ |
+
+- Danh mục và bảng tra cứu **không** thuộc cơ chế trường mở rộng. Chúng chỉ trở thành dữ liệu xuất khi một giá trị đã được chọn hoặc công thức tra cứu đã đưa kết quả vào một ô trường trên `NhapLieu`.
+- Tên `ListObject` là hợp đồng kỹ thuật; VBA tìm bảng theo tên, không theo địa chỉ cột/hàng.
+- Việc cập nhật danh mục phải thực hiện trên file mẫu nguồn rồi phát hành phiên bản mới. Không sửa riêng từng file hồ sơ trừ khi cần xử lý một trường hợp khẩn cấp và người dùng hiểu file đó sẽ khác mẫu chuẩn.
 
 ---
 
@@ -658,13 +697,13 @@ Ba giá trị này do VBA ghi vào cột ẩn khi `NgayCap` của dòng đó tha
 - Không có cột `Ben` trong workbook thừa kế.
 - Không vẽ sơ đồ gia đình.
 - Không dùng double-click.
-- Không dùng block lặp động trong Word.
+- Không triển khai placeholder danh sách, block lặp hoặc bảng động trong v0.3.0; tách thành issue và lần chốt SOT riêng.
 
 ## 16. Các hướng cũ không sử dụng
 
 - **Mã đường dẫn `1`, `1.4`, `1.4.4`:** bỏ vì con chung không thuộc riêng nhánh 1 hay 2, đổi cấu trúc phải đánh lại mã cả cây và dễ nhân đôi người.
 - **Quan hệ chi tiết `ChaID/MeID/VoChongID`:** không dùng cho MVP vì làm gián đoạn cách nhập hiện tại và mô hình hóa nhiều hơn nhu cầu thực tế.
-- **Bảng tài sản ngang một-dòng-một-tài-sản:** bỏ vì 18 trường tạo bảng quá rộng, phải cuộn ngang và dễ nhập lệch cột. Thay bằng phiếu dọc ở §10.
+- **Bảng tài sản ngang một-dòng-một-tài-sản:** không dùng. Thay bằng ba thẻ dọc đặt cạnh nhau ở §10; mỗi thẻ vẫn đọc từ trên xuống.
 - **Sheet tài sản riêng:** bỏ để người dùng nhập một mạch trên cùng sheet `NhapLieu`.
 - **Điểm được giữ:** mỗi người có một `NguoiID`, chỉ nhập một lần; dùng `ParentNguoiID` để nhánh không phụ thuộc màu hay vị trí dòng; mỗi tài sản có một `TaiSanID` ổn định.
 
@@ -675,7 +714,7 @@ Chỉ xem xét lại các hướng trên khi có yêu cầu pháp lý hoặc xu�
 ### 17.1. Đã đạt ở v0.2.1
 
 - Workbook được tạo ở file mới, không ghi đè mẫu nguồn.
-- Chỉ `B4` và `B9:G38` cho phép gõ; các vùng khác được khóa đúng §9.1.
+- Ở workbook v0.2.1, chỉ `B4` và `B9:G38` cho phép gõ; đây là hiện trạng trước khi có vùng mở rộng v0.3.0.
 - Cột trạng thái và các cột kỹ thuật được ẩn.
 - Hàng TK dùng H0–H4, điều khiển tối đa dùng 0–4 và mặc định 2.
 - Màu H0–H4 đúng bảng màu ở §7.2 và đủ khác nhau khi nhìn trên màn hình.
@@ -687,19 +726,23 @@ Chỉ xem xét lại các hướng trên khi có yêu cầu pháp lý hoặc xu�
 
 ### 17.2. Cần đạt ở v0.3.0
 
-- `PhienBanCauTruc` là `2.1.0`.
-- Ba phiếu tài sản dọc nằm dưới vùng người trên cùng sheet `NhapLieu`, đúng bố cục §4.
-- Phiếu tài sản chỉ cho nhập vào ô giá trị; nhãn và ô ẩn bị khóa.
-- Phiếu có dữ liệu sinh `TaiSanID` dạng `TS001`; xóa trắng phiếu thì ID được xóa theo.
+- `PhienBanCauTruc` là `2.2.0`.
+- Bảng Người ở `A:I`, vùng mở rộng ở `J:Z`; ba thẻ Tài sản dọc ở `AA:AF`, đặt cạnh nhau và cùng bắt đầu ở hàng 8/9.
+- Không còn dữ liệu kỹ thuật ở `J:W` trên `NhapLieu`; ID, ngày tính và trạng thái nằm trên `XuatAn` rất ẩn.
+- Tất cả ô nhập tay của Người, Tài sản và Hồ sơ có định dạng Text. Nhập `05`, `00123`, `1/2` rồi lưu/mở lại vẫn giữ nguyên từng ký tự và xuất Word giống hệt.
+- Ngày `2015`, `05/2015`, `12/05/2015` hiển thị và xuất đúng nguyên văn; VBA vẫn tạo được ngày tính tương ứng khi chuỗi hợp lệ.
+- Cột trường Người mở rộng nhận tiêu đề mới; công thức mẫu được `Đồng bộ trường` điền xuống các dòng, còn dữ liệu nhập tay không bị nhân bản.
+- Thêm nhãn ở thẻ Tài sản 1 rồi đồng bộ: thẻ 2 và 3 có cùng nhãn/công thức, không ghi đè giá trị nhập tay.
+- VBA tìm trường theo tên tiêu đề/nhãn, không theo offset cột. Chèn thêm trường trong vùng dự phòng không làm sai Hàng TK, Nhận đất hoặc dữ liệu kỹ thuật.
+- Thẻ có dữ liệu sinh `TaiSanID` dạng `TS001`; xóa trắng thẻ thì ID được xóa theo.
 - `LoaiSo`, `HinhThucSuDung`, `LoaiDat`, `CoQuanCapSo`, `NguoiUyQuyen` chọn được từ danh mục.
-- `NgayCapSo` nhập `2015`, `05/2015`, `12/05/2015` đều hiển thị và xuất đúng nguyên văn.
-- Chỉ phiếu 1 và phiếu 3 có dữ liệu thì phiếu 3 xuất bằng hậu tố ` 2`, đúng §10.5.
-- Bỏ trống toàn bộ ba phiếu thì kiểm tra chặn xuất.
-- Tổng `ONT + CLN + NTS + LUC` vượt `DienTich` thì chặn xuất.
-- 11 người với mẫu `1. PCDS .docx` thì chặn xuất và thông báo nêu rõ sức chứa 10.
-- Hai phiếu tài sản có dữ liệu với mẫu `1. PCDS .docx` thì chặn xuất và thông báo nêu rõ sức chứa 1.
+- Chỉ thẻ 1 và thẻ 3 có dữ liệu thì thẻ 3 vẫn dùng token có số cuối `3`, không bị dồn thành `2`.
+- Bỏ trống tài sản, diện tích lệch hoặc dữ liệu vượt sức chứa mẫu chỉ hiện trong chẩn đoán; người dùng vẫn xuất được Word.
 - Người có `NgayCap` trước 01/07/2024 xuất `Căn cước công dân`; từ 01/07/2024 xuất `Căn cước`.
-- Xuất `1. PCDS .docx` với dữ liệu giả: không còn `[Tên n]`, `[Serial]`, `[Niêm Yết]` hay `{{...}}` trong file kết quả.
-- Đoạn thỏa thuận nêu đúng người được chọn `NhanDat`, không phụ thuộc người đó ở slot số mấy.
+- Parser và tất cả mẫu Word chỉ dùng `{{...}}`; không còn parser tương thích cú pháp cũ.
+- `{{ten1}}`, `{{namsinh1}}`, `{{cccd1}}`, `{{loaiso1}}`, `{{sothua1}}`, `{{dientich1}}` lấy đúng giá trị text tương ứng.
+- Trường mở rộng `Số điện thoại` tạo token `{{sodienthoai1}}` mà không sửa VBA.
+- Ô công thức lỗi xuất nguyên mã lỗi; placeholder không có nguồn và tên bị trùng xuất dấu lỗi rõ theo §12.2, không chặn tạo file.
+- Chỉ lỗi mở mẫu, tạo Word hoặc ghi file mới dừng xuất.
 - Xuất trong khi người dùng đang mở một tài liệu Word khác: tài liệu đó không bị đóng và không bị thay đổi.
 - Xuất xong không tự mở file, không tự mở thư mục, không tự lưu workbook.

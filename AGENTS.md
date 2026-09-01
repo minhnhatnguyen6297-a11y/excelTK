@@ -40,7 +40,7 @@ Thứ tự ưu tiên:
 
 `AGENTS.md` -> `docs/specs/inheritance-branch-architecture.md` (SOT tổng, đã chốt)
 -> issue Linear đang chạy -> mã nguồn VBA và workbook chốt trong
-`templates/excel/chot-v*` -> `docs/reference/` và `docs/session/` (khảo sát/lịch
+`templates/excel/v*/` -> `docs/reference/` và `docs/session/` (khảo sát/lịch
 sử, không phải thẩm quyền).
 
 Đặc tả **ở lại trong repo**:
@@ -115,7 +115,7 @@ plan/spec vào file trong repo để đi tiếp.
 ## Bố cục repo
 
 - `templates/word/`: mẫu Word có placeholder. Chỉ sửa khi có yêu cầu rõ ràng.
-- `templates/excel/`: workbook mẫu nguồn và bản chốt `chot-v*`. Không ghi đè bản
+- `templates/excel/`: workbook mẫu nguồn và các bản MVP chốt theo thư mục `vX.Y.Z/`. Không ghi đè bản
   gốc khi thử nghiệm. `Dữ liệu thừa kế (2).xlsb` đang dirty so với Git: không
   commit, không dùng làm nguồn phát triển.
 - `src/vba/`: mã nguồn VBA, là nguồn duy nhất của code. Không sửa VBA trực tiếp
@@ -143,7 +143,7 @@ plan/spec vào file trong repo để đi tiếp.
 - Bảo vệ sheet: `UserInterfaceOnly:=True`, khôi phục ở `Workbook_Open`.
   Không `ThisWorkbook.Save` trong `BeforeClose`.
 - Ngày của người: ô hiển thị format `@`, engine đọc cột `...Tinh`.
-- Bản chốt chỉ copy vào `templates/excel/chot-v*` sau khi kiểm chứng xanh.
+- Bản chốt chỉ copy vào `templates/excel/vX.Y.Z/` sau khi kiểm chứng xanh.
 
 ## Cổng review
 
