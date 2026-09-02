@@ -122,12 +122,14 @@ Không có bước chọn vai trò sau mỗi lần thêm người và không có
 ### 3.4. Bước 3 — Thông tin phụ
 
 12. Điền khối `THÔNG TIN HỒ SƠ`: xã niêm yết, số công chứng, người ủy quyền.
-13. Chọn mẫu Word ở ô `Mẫu Word`.
+13. Bấm `Chọn nơi lấy mẫu` để chọn thư mục chứa các mẫu Word `.docx`.
+14. Bấm `Chọn văn bản` và chọn một mẫu `.docx` trong thư mục đã chọn. Ô `Mẫu Word` chỉ hiển thị tên file để kiểm tra, không nhận nhập trực tiếp.
+15. Bấm `Chọn nơi xuất` để chọn thư mục nhận file Word cuối cùng.
 
 ### 3.5. Bước 4–5 — Kiểm tra và xuất
 
-14. Có thể bấm `Kiểm tra dữ liệu` để xem danh sách gợi ý sửa. Đây là bước hỗ trợ, không phải cổng chặn xuất.
-15. Bấm `Xuất Văn bản`. File Word mới được tạo trong thư mục kết quả; lỗi dữ liệu trong ô được thể hiện rõ trong Word để người dùng tự tìm và sửa. Workbook không tự mở file và không tự mở thư mục.
+16. Có thể bấm `Kiểm tra dữ liệu` để xem danh sách gợi ý sửa. Đây là bước hỗ trợ, không phải cổng chặn xuất.
+17. Bấm `Xuất Văn bản`. File Word mới được tạo trong thư mục đã chọn ở bước 15; lỗi dữ liệu trong ô được thể hiện rõ trong Word để người dùng tự tìm và sửa. Workbook không tự mở file và không tự mở thư mục.
 
 ## 4. Bố cục sheet `NhapLieu`
 
@@ -157,14 +159,23 @@ cột AE:AF    nhãn | giá trị của Tài sản 3
 
 ```text
 Hàng TK tối đa: 2        | Kiểm tra dữ liệu | Xuất Văn bản
-Mẫu Word: 1. PCDS .docx
+Nơi lấy mẫu: <thư mục>    | Chọn nơi lấy mẫu
+Mẫu Word: 1. PCDS .docx   | Chọn văn bản
+Nơi xuất: <thư mục>       | Chọn nơi xuất
 ```
 
 - `Hàng TK tối đa` mặc định `2`, tối thiểu `0`, tối đa `4`.
 - `Xuất Văn bản` là hành động chính và đặt ở vùng dễ thấy bên trái, không đè lên cột trường mở rộng.
 - Nếu giảm mức tối đa thấp hơn Hàng TK đang có dữ liệu, không tự sửa dữ liệu; chặn và chỉ rõ các dòng cần xử lý.
 - Nếu tăng mức tối đa, bảng màu và vòng chuyển Hàng TK cập nhật ngay.
-- Ô `Mẫu Word` giữ đường dẫn mẫu đang chọn. Đổi mẫu làm cập nhật thông tin sức chứa dùng cho chẩn đoán (§12.3), nhưng không tự chặn xuất.
+- Giao diện giữ cách trình bày trực tiếp trên sheet như bản cũ; không tạo UserForm hoặc wizard. Chỉ giữ các chức năng `Chọn nơi lấy mẫu`, `Chọn văn bản`, `Chọn nơi xuất`, `Kiểm tra dữ liệu`, `Đồng bộ trường` và `Xuất Văn bản`; bỏ nút hoặc tùy chọn Word khác.
+- `Chọn nơi lấy mẫu` dùng hộp chọn thư mục. Hủy hộp chọn thì giữ nguyên cấu hình. Chọn thành công cập nhật `ThuMucMauWord` và làm mới nguồn mẫu `.docx`.
+- Ô `Mẫu Word` tại `C5` bị khóa và chỉ hiển thị tên mẫu đang chọn; `MauWordDangChon` giữ đường dẫn đầy đủ. Nút `Chọn văn bản` là đường chọn mẫu duy nhất: mở hộp chọn file bắt đầu tại `ThuMucMauWord` và chỉ nhận `.docx` nằm trực tiếp trong thư mục này.
+- Hủy hộp `Chọn văn bản` giữ nguyên `MauWordDangChon`, nội dung `C5`, `SucChuaNguoiMau` và `SucChuaTaiSanMau`.
+- Khi đổi nơi lấy mẫu, nếu thư mục mới có file cùng tên với mẫu đang chọn thì cập nhật `MauWordDangChon` sang đường dẫn đầy đủ mới và làm mới sức chứa. Nếu không có file cùng tên thì xóa `MauWordDangChon`, xóa `C5`, đặt hai sức chứa mẫu về `0` và yêu cầu người dùng chọn lại; không tự chọn file đầu tiên.
+- Đổi mẫu làm cập nhật thông tin sức chứa dùng cho chẩn đoán (§12.3), nhưng không tự chặn xuất.
+- `Chọn nơi xuất` dùng hộp chọn thư mục và ghi `ThuMucXuat`; hủy hộp chọn thì giữ nguyên cấu hình. `Xuất Văn bản` dùng đúng thư mục này và không tự đổi về thư mục mặc định.
+- Đường dẫn dài được rút gọn khi hiển thị trên `NhapLieu`, nhưng giá trị đầy đủ luôn nằm trong `CauHinh` và là nguồn duy nhất cho VBA.
 
 ### 4.2. Nhãn bắt buộc trên giao diện
 
@@ -236,7 +247,9 @@ Không lưu trường nhập tay `TuChoi`. Đây là kết quả được engine
 | `NguoiIDTiepTheo` | Số dùng để sinh ID người tiếp theo |
 | `TaiSanIDTiepTheo` | Số dùng để sinh ID tài sản tiếp theo |
 | `SucChuaNguoi` | Sức chứa hiện tại của bảng nhập |
+| `ThuMucMauWord` | Thư mục người dùng chọn làm nơi lấy mẫu `.docx` |
 | `MauWordDangChon` | Đường dẫn mẫu Word đang chọn |
+| `ThuMucXuat` | Thư mục người dùng chọn để nhận file Word cuối cùng |
 | `SucChuaNguoiMau` | Số người tối đa mẫu đang chọn chứa được |
 | `SucChuaTaiSanMau` | Số tài sản tối đa mẫu đang chọn chứa được |
 
@@ -369,7 +382,10 @@ Quy tắc MVP:
 | Vùng | Quyền |
 | --- | --- |
 | `B4` | Nhập — Hàng TK tối đa |
-| `C5` | Chọn — Mẫu Word |
+| `C5` | Chỉ đọc — hiển thị tên Mẫu Word đang chọn |
+| Nút `Chọn nơi lấy mẫu` | Chỉ bấm — chọn thư mục mẫu Word `.docx` |
+| Nút `Chọn văn bản` | Chỉ bấm — chọn một mẫu `.docx` trong thư mục mẫu |
+| Nút `Chọn nơi xuất` | Chỉ bấm — chọn thư mục nhận Word cuối |
 | `B9:G38` | Nhập — họ tên, ngày sinh, ngày chết, số giấy tờ, ngày cấp, địa chỉ |
 | `H9:I38` | Chỉ bấm — Hàng TK, Nhận đất |
 | `J8:Z38` | Nhập tiêu đề, dữ liệu hoặc công thức của trường Người mở rộng |
@@ -746,3 +762,7 @@ Chỉ xem xét lại các hướng trên khi có yêu cầu pháp lý hoặc xu�
 - Chỉ lỗi mở mẫu, tạo Word hoặc ghi file mới dừng xuất.
 - Xuất trong khi người dùng đang mở một tài liệu Word khác: tài liệu đó không bị đóng và không bị thay đổi.
 - Xuất xong không tự mở file, không tự mở thư mục, không tự lưu workbook.
+- Giao diện Word chỉ có ba hành động chọn: `Chọn nơi lấy mẫu`, `Chọn văn bản`, `Chọn nơi xuất`; `C5` chỉ hiển thị và bị khóa, không có UserForm/wizard hoặc chức năng Word thừa.
+- Ba hộp chọn đều giữ nguyên cấu hình khi người dùng bấm hủy; chọn văn bản chỉ nhận `.docx` trong `ThuMucMauWord`.
+- Đổi thư mục mẫu cập nhật đúng đường dẫn của mẫu cùng tên hoặc xóa lựa chọn/sức chứa theo §4.1; không tự chọn mẫu khác.
+- Chọn thư mục xuất rồi xuất thử tạo file Word đúng tại `ThuMucXuat`; có ảnh QA thanh công cụ và bằng chứng build/workbook, Word thật.
