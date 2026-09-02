@@ -1,7 +1,8 @@
 ﻿[CmdletBinding()]
 param(
     [string]$TemplatesPath = (Join-Path (Split-Path -Parent $PSScriptRoot) "templates\\word"),
-    [string]$ReportPath = (Join-Path (Split-Path -Parent $PSScriptRoot) "docs\\reference\\word-placeholders-2026-08-31.md")
+    [string]$ReportPath = (Join-Path (Split-Path -Parent $PSScriptRoot) "output\\word-placeholder-audit.md"),
+    [switch]$FailOnViolation
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,8 +41,8 @@ function Get-WordDocumentText {
     $document = $null
     try {
         $document = $Word.Documents.Open($SourcePath, $false, $true, $false)
-
         $segments = [System.Collections.Generic.List[string]]::new()
+
         foreach ($initialStory in $document.StoryRanges) {
             $story = $initialStory
             while ($null -ne $story) {
@@ -51,6 +52,7 @@ function Get-WordDocumentText {
                 $story = $nextStory
             }
         }
+
         return ($segments -join [Environment]::NewLine)
     }
     finally {
@@ -61,29 +63,31 @@ function Get-WordDocumentText {
     }
 }
 
-function Get-Placeholders {
+function Get-TokenInventory {
     param([string]$Text)
 
-    $matches = [regex]::Matches($Text, '\[[^\]\r\n]+\]|\{\{[^}\r\n]+\}\}')
-    return @($matches | ForEach-Object { $_.Value.Trim() })
-}
+    $tokens = [System.Collections.Generic.List[object]]::new()
+    $matches = [regex]::Matches($Text, '\[[^\]\r\n]+\]|\{\{[^\r\n]*?\}\}')
 
-function Get-AssetSlots {
-    param([string[]]$Placeholders)
-
-    $slots = [System.Collections.Generic.HashSet[int]]::new()
-    foreach ($placeholder in $Placeholders) {
-        if ($placeholder -notmatch '^\[(Serial|Số thửa|Tờ bản đồ|Loại sổ|Diện tích|Địa chỉ thửa đất)(?: (\d+))?\]$') {
-            continue
+    foreach ($match in $matches) {
+        $token = $match.Value.Trim()
+        $kind = if ($token.StartsWith("[")) {
+            "Ngoặc vuông cũ"
         }
-        if ([string]::IsNullOrWhiteSpace($Matches[2])) {
-            [void]$slots.Add(1)
+        elseif ($token -match '^\{\{[a-z][a-z0-9]*\}\}$') {
+            "Tĩnh hợp lệ"
         }
         else {
-            [void]$slots.Add([int]$Matches[2])
+            "Tĩnh sai quy tắc"
         }
+
+        $tokens.Add([pscustomobject]@{
+            Token = $token
+            Kind = $kind
+        })
     }
-    return @($slots | Sort-Object)
+
+    return @($tokens)
 }
 
 function ConvertTo-MarkdownCell {
@@ -92,76 +96,117 @@ function ConvertTo-MarkdownCell {
     return $Value.Replace("|", "\\|").Replace("`r", " ").Replace("`n", " ")
 }
 
-$templates = @(Get-ChildItem -LiteralPath $templatesRoot -File | Where-Object { $_.Extension -in ".doc", ".docx" } | Sort-Object Name)
+$templates = @(Get-ChildItem -LiteralPath $templatesRoot -File -Recurse |
+    Where-Object { $_.Extension -in ".doc", ".docx" } |
+    Sort-Object FullName)
 if ($templates.Count -eq 0) {
     throw "Không tìm thấy mẫu .docx hoặc .doc trong $templatesRoot"
 }
 
 $word = $null
+$violationCount = 0
 try {
     $word = New-Object -ComObject Word.Application
     $word.Visible = $false
     $word.DisplayAlerts = 0
     $word.AutomationSecurity = 3
 
-    $results = foreach ($template in $templates) {
+    $results = @(foreach ($template in $templates) {
         $text = Get-WordDocumentText -Word $word -SourcePath $template.FullName
-
-        $placeholders = @(Get-Placeholders -Text $text)
+        $inventory = @(Get-TokenInventory -Text $text)
         $counts = [ordered]@{}
-        foreach ($placeholder in $placeholders) {
-            if ($counts.Contains($placeholder)) { $counts[$placeholder]++ }
-            else { $counts[$placeholder] = 1 }
+        foreach ($item in $inventory) {
+            if ($counts.Contains($item.Token)) { $counts[$item.Token]++ }
+            else { $counts[$item.Token] = 1 }
         }
-        $assetSlots = @(Get-AssetSlots -Placeholders $placeholders)
-        $assetCapacity = if ($assetSlots.Count -eq 0) { "Không thấy placeholder tài sản" }
-        else { "Tài sản " + ($assetSlots -join ", ") }
 
+        $legacyTokens = @($inventory | Where-Object { $_.Kind -eq "Ngoặc vuông cũ" } | ForEach-Object { $_.Token } | Sort-Object -Unique)
+        $invalidTokens = @($inventory | Where-Object { $_.Kind -eq "Tĩnh sai quy tắc" } | ForEach-Object { $_.Token } | Sort-Object -Unique)
+        $duplicateTokens = @($counts.GetEnumerator() |
+            Where-Object { $_.Value -gt 1 } |
+            ForEach-Object { $_.Key } |
+            Sort-Object)
+        $violations = [System.Collections.Generic.List[string]]::new()
+
+        if ($template.Extension -eq ".doc") {
+            $violations.Add("Mẫu .doc phải chuyển sang .docx hoặc được ghi rõ chưa hỗ trợ.")
+        }
+        foreach ($token in $legacyTokens) {
+            $violations.Add("Còn placeholder ngoặc vuông: $token")
+        }
+        foreach ($token in $invalidTokens) {
+            $violations.Add("Placeholder {{...}} sai quy tắc: $token")
+        }
+
+        $violationCount += $violations.Count
         [pscustomobject]@{
             Name = $template.Name
+            RelativePath = $template.FullName.Substring($templatesRoot.Length).TrimStart('\', '/')
             Extension = $template.Extension
             Category = Get-TemplateCategory -FileName $template.Name
             Placeholders = $counts
-            DistinctCount = $counts.Count
-            TotalCount = $placeholders.Count
-            AssetCapacity = $assetCapacity
+            ValidTokens = @($inventory | Where-Object { $_.Kind -eq "Tĩnh hợp lệ" } | ForEach-Object { $_.Token } | Sort-Object -Unique)
+            InvalidTokens = $invalidTokens
+            LegacyTokens = $legacyTokens
+            DuplicateTokens = $duplicateTokens
+            Violations = @($violations)
         }
-    }
+    })
 
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add("# Kiểm kê placeholder mẫu Word")
     $lines.Add("")
-    $lines.Add("- Ngày tạo: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss K")")
-    $lines.Add("- Phạm vi: tất cả file .docx và .doc trực tiếp trong thư mục templates/word/.")
-    $lines.Add("- Cách đọc: Word COM StoryRanges trong phiên riêng, chỉ đọc cho cả .docx và .doc.")
-    $lines.Add("- Quy tắc phân loại: chỉ dựa vào tên file; mẫu không đủ dấu hiệu được ghi Chưa phân loại.")
+    $lines.Add("- Ngày tạo: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss K')")
+    $lines.Add("- Phạm vi: tất cả file .docx và .doc trong templates/word/, gồm cả thư mục con.")
+    $lines.Add("- Cách đọc: Word COM StoryRanges trong phiên riêng, chỉ đọc.")
+    $lines.Add("- Token tĩnh hợp lệ: {{ten1}} — bắt đầu bằng chữ thường, sau đó chỉ có chữ thường hoặc số.")
+    $lines.Add("- Chế độ nghiêm: $([bool]$FailOnViolation)")
     $lines.Add("")
     $lines.Add("## Tổng quan")
     $lines.Add("")
-    $lines.Add("| Mẫu | Nhóm | Định dạng | Placeholder khác nhau | Tổng lần xuất hiện | Sức chứa tài sản |")
-    $lines.Add("| --- | --- | --- | ---: | ---: | --- |")
+    $lines.Add("| Mẫu | Nhóm | Định dạng | Token hợp lệ | Token sai | Ngoặc vuông | Token lặp | Vi phạm |")
+    $lines.Add("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |")
     foreach ($result in $results) {
-        $lines.Add("| $(ConvertTo-MarkdownCell $result.Name) | $($result.Category) | $($result.Extension) | $($result.DistinctCount) | $($result.TotalCount) | $($result.AssetCapacity) |")
+        $lines.Add("| $(ConvertTo-MarkdownCell $result.RelativePath) | $($result.Category) | $($result.Extension) | $($result.ValidTokens.Count) | $($result.InvalidTokens.Count) | $($result.LegacyTokens.Count) | $($result.DuplicateTokens.Count) | $($result.Violations.Count) |")
     }
 
     foreach ($result in $results) {
+        $validTokenText = if ($result.ValidTokens.Count -eq 0) { "Không có" } else { $result.ValidTokens -join ", " }
+        $invalidTokenText = if ($result.InvalidTokens.Count -eq 0) { "Không có" } else { $result.InvalidTokens -join ", " }
+        $legacyTokenText = if ($result.LegacyTokens.Count -eq 0) { "Không có" } else { $result.LegacyTokens -join ", " }
+        $duplicateTokenText = if ($result.DuplicateTokens.Count -eq 0) { "Không có" } else { $result.DuplicateTokens -join ", " }
+
         $lines.Add("")
-        $lines.Add("## $($result.Name)")
+        $lines.Add("## $($result.RelativePath)")
         $lines.Add("")
         $lines.Add("- Nhóm: $($result.Category)")
-        $lines.Add("- Sức chứa tài sản theo placeholder: $($result.AssetCapacity)")
-        $lines.Add("- Đọc trực tiếp từ mẫu gốc: Có")
+        $lines.Add("- Token hợp lệ: $validTokenText")
+        $lines.Add("- Token sai: $invalidTokenText")
+        $lines.Add("- Ngoặc vuông cũ: $legacyTokenText")
+        $lines.Add("- Token xuất hiện nhiều lần: $duplicateTokenText")
         $lines.Add("")
-        $lines.Add("| Placeholder | Số lần |")
+        $lines.Add("### Vi phạm")
+        if ($result.Violations.Count -eq 0) {
+            $lines.Add("- Không có")
+        }
+        else {
+            foreach ($violation in $result.Violations) {
+                $lines.Add("- $violation")
+            }
+        }
+
+        $lines.Add("")
+        $lines.Add("| Token | Số lần |")
         $lines.Add("| --- | ---: |")
-        foreach ($placeholder in @($result.Placeholders.Keys | Sort-Object)) {
-            $lines.Add("| $(ConvertTo-MarkdownCell $placeholder) | $($result.Placeholders[$placeholder]) |")
+        foreach ($token in @($result.Placeholders.Keys | Sort-Object)) {
+            $lines.Add("| $(ConvertTo-MarkdownCell $token) | $($result.Placeholders[$token]) |")
         }
     }
 
-Set-Content -LiteralPath $ReportPath -Value $lines -Encoding UTF8
-Write-Output "REPORT=$ReportPath"
-Write-Output "TEMPLATES=$($results.Count)"
+    Set-Content -LiteralPath $ReportPath -Value $lines -Encoding UTF8
+    Write-Output "REPORT=$ReportPath"
+    Write-Output "TEMPLATES=$($results.Count)"
+    Write-Output "VIOLATIONS=$violationCount"
 }
 finally {
     if ($null -ne $word) {
@@ -172,3 +217,6 @@ finally {
     [GC]::WaitForPendingFinalizers()
 }
 
+if ($FailOnViolation -and $violationCount -gt 0) {
+    exit 1
+}
