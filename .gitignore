@@ -1,6 +1,7 @@
 /OfficeCLI/
 /output/
 /.1devtool/
+/.worktrees/
 ~$*
 *.tmp
 Thumbs.db
