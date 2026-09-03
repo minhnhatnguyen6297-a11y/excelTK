@@ -917,6 +917,13 @@ try {
         [string]$testInput.Range("AB9").Value2 -ne "") {
         $schemaFailures.Add("Ba thẻ Tài sản phải ở AA:AF, cùng bắt đầu từ hàng 8/9.")
     }
+    if ([string]$testInput.Range("J40").Value2 -ne "" -or
+        [string]$testExport.Range("BM1").Value2 -ne "TaiSanID" -or
+        [string]$testExport.Range("BN1").Value2 -ne "NgayCapSoGoc" -or
+        [string]$testExport.Range("BO1").Value2 -ne "NgayCapSoTinh" -or
+        [string]$testExport.Range("BP1").Value2 -ne "CoDuLieu") {
+        $schemaFailures.Add("Metadata kỹ thuật Tài sản phải nằm ở XuatAn!BM:BP, không nằm trong NhapLieu!J:M.")
+    }
     if ([bool]$testInput.Range("AA8:AF26").MergeCells -or
         [bool]$testInput.Range("AB9").Locked -or
         -not [bool]$testInput.Range("AA9").Locked -or
