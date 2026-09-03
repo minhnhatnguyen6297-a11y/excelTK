@@ -354,12 +354,12 @@ Public Function DateDisplay(ByVal value As Variant) As String
 End Function
 
 Public Function HasEngineDate(ByVal rowIndex As Long, ByVal calcHeader As String) As Boolean
-    HasEngineDate = IsDate(PersonTechCell(rowIndex, calcHeader).Value)
+    HasEngineDate = IsDate(PersonTechCell(rowIndex, calcHeader).Value2)
 End Function
 
 Public Function EngineDateDisplay(ByVal rowIndex As Long, ByVal calcHeader As String) As String
     If HasEngineDate(rowIndex, calcHeader) Then
-        EngineDateDisplay = Format$(CDate(PersonTechCell(rowIndex, calcHeader).Value), "dd/mm/yyyy")
+        EngineDateDisplay = Format$(CDate(PersonTechCell(rowIndex, calcHeader).Value2), "dd/mm/yyyy")
     Else
         EngineDateDisplay = vbNullString
     End If
@@ -376,11 +376,11 @@ End Function
 Public Function AgeAtDeath(ByVal rowIndex As Long) As Variant
     If Not HasEngineDate(rowIndex, COL_BIRTH_CALC) Then Exit Function
     If Not HasEngineDate(rowIndex, COL_DEATH_CALC) Then Exit Function
-    If CDate(PersonTechCell(rowIndex, COL_DEATH_CALC).Value) < _
-       CDate(PersonTechCell(rowIndex, COL_BIRTH_CALC).Value) Then Exit Function
+    If CDate(PersonTechCell(rowIndex, COL_DEATH_CALC).Value2) < _
+       CDate(PersonTechCell(rowIndex, COL_BIRTH_CALC).Value2) Then Exit Function
 
-    AgeAtDeath = FullYearsBetween(CDate(PersonTechCell(rowIndex, COL_BIRTH_CALC).Value), _
-                                  CDate(PersonTechCell(rowIndex, COL_DEATH_CALC).Value))
+    AgeAtDeath = FullYearsBetween(CDate(PersonTechCell(rowIndex, COL_BIRTH_CALC).Value2), _
+                                  CDate(PersonTechCell(rowIndex, COL_DEATH_CALC).Value2))
 End Function
 
 Public Function YearDisplay(ByVal value As Variant) As String

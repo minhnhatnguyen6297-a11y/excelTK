@@ -386,7 +386,7 @@ Private Sub PrepareCheckSheet(ByVal wsCheck As Worksheet)
     wsCheck.Hyperlinks.Delete
     On Error GoTo 0
 
-    wsCheck.Range("A4:F4").Value = Array("Mức", "Mã lỗi", "STT", "Họ tên", "Nội dung", "Ô cần sửa")
+    wsCheck.Range("A4:F4").Value2 = Array("Mức", "Mã lỗi", "STT", "Họ tên", "Nội dung", "Ô cần sửa")
     mIssueRow = 5
     mErrorCount = 0
     mWarningCount = 0
@@ -465,8 +465,8 @@ Private Sub ValidatePersonDates(ByVal rowIndex As Long)
 
     If HasEngineDate(rowIndex, COL_BIRTH_CALC) And _
        HasEngineDate(rowIndex, COL_DEATH_CALC) Then
-        If CDate(PersonTechCell(rowIndex, COL_DEATH_CALC).Value) < _
-           CDate(PersonTechCell(rowIndex, COL_BIRTH_CALC).Value) Then
+        If CDate(PersonTechCell(rowIndex, COL_DEATH_CALC).Value2) < _
+           CDate(PersonTechCell(rowIndex, COL_BIRTH_CALC).Value2) Then
             AddPersonIssue "Lỗi", "DATE_DEATH_BEFORE_BIRTH", rowIndex, _
                            "Ngày chết không được trước ngày sinh.", COL_DEATH
         End If

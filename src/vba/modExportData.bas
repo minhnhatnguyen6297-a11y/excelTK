@@ -200,7 +200,7 @@ Private Sub WriteExportPerson(ByVal wsExport As Worksheet, ByVal outputRow As Lo
     wsExport.Cells(outputRow, 7).NumberFormat = "@"
     wsExport.Cells(outputRow, 7).Value2 = PersonTechCell(personRow, COL_BIRTH_RAW).Value2
     If HasEngineDate(personRow, COL_BIRTH_CALC) Then
-        wsExport.Cells(outputRow, 8).Value = PersonTechCell(personRow, COL_BIRTH_CALC).Value
+        wsExport.Cells(outputRow, 8).Value2 = PersonTechCell(personRow, COL_BIRTH_CALC).Value2
         wsExport.Cells(outputRow, 8).NumberFormat = "dd/mm/yyyy"
     End If
     wsExport.Cells(outputRow, 9).NumberFormat = "@"
@@ -208,7 +208,7 @@ Private Sub WriteExportPerson(ByVal wsExport As Worksheet, ByVal outputRow As Lo
     wsExport.Cells(outputRow, 10).NumberFormat = "@"
     wsExport.Cells(outputRow, 10).Value2 = PersonTechCell(personRow, COL_DEATH_RAW).Value2
     If HasEngineDate(personRow, COL_DEATH_CALC) Then
-        wsExport.Cells(outputRow, 11).Value = PersonTechCell(personRow, COL_DEATH_CALC).Value
+        wsExport.Cells(outputRow, 11).Value2 = PersonTechCell(personRow, COL_DEATH_CALC).Value2
         wsExport.Cells(outputRow, 11).NumberFormat = "dd/mm/yyyy"
     End If
     wsExport.Cells(outputRow, 12).Value2 = PersonCell(personRow, COL_DOCNO).Value2
@@ -217,7 +217,7 @@ Private Sub WriteExportPerson(ByVal wsExport As Worksheet, ByVal outputRow As Lo
     wsExport.Cells(outputRow, 14).NumberFormat = "@"
     wsExport.Cells(outputRow, 14).Value2 = PersonTechCell(personRow, COL_ISSUED_RAW).Value2
     If HasEngineDate(personRow, COL_ISSUED_CALC) Then
-        wsExport.Cells(outputRow, 15).Value = PersonTechCell(personRow, COL_ISSUED_CALC).Value
+        wsExport.Cells(outputRow, 15).Value2 = PersonTechCell(personRow, COL_ISSUED_CALC).Value2
         wsExport.Cells(outputRow, 15).NumberFormat = "dd/mm/yyyy"
     End If
     wsExport.Cells(outputRow, 16).Value2 = PersonCell(personRow, COL_ADDRESS).Value2

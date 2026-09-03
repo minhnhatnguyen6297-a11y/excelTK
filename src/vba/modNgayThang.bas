@@ -102,10 +102,10 @@ Private Sub NormalizeOneDateCell(ByVal inputCell As Range, ByVal rawHeader As St
     keepOldRaw = False
     If preserveExistingRaw Then
         If Not IsError(rawCell.Value2) Then
-            If Len(Trim$(ValueToExportText(rawCell.Value2))) > 0 And IsDate(calcCell.Value) Then
+            If Len(Trim$(ValueToExportText(rawCell.Value2))) > 0 And IsDate(calcCell.Value2) Then
                 If Not IsError(inputCell.Value2) Then
                     keepOldRaw = (Trim$(ValueToExportText(inputCell.Value2)) = Trim$(ValueToExportText(rawCell.Value2)) Or _
-                                 Trim$(ValueToExportText(inputCell.Value2)) = Format$(CDate(calcCell.Value), "dd/mm/yyyy"))
+                                 Trim$(ValueToExportText(inputCell.Value2)) = Format$(CDate(calcCell.Value2), "dd/mm/yyyy"))
                 End If
             End If
         End If
@@ -127,7 +127,7 @@ Private Sub NormalizeOneDateCell(ByVal inputCell As Range, ByVal rawHeader As St
             rawCell.Value2 = originalText
         End If
         inputCell.Value2 = originalText
-        calcCell.Value = calculatedDate
+        calcCell.Value2 = calculatedDate
         calcCell.NumberFormat = "dd/mm/yyyy"
     Else
         rawCell.NumberFormat = "@"
@@ -158,7 +158,7 @@ Public Function NormalizeStandaloneDateCell(ByVal inputCell As Range, ByVal rawC
     If TryParseLegalDate(inputCell.Value2, normalizedText, originalText, calculatedDate, errorReason) Then
         inputCell.Value2 = originalText
         rawCell.Value2 = originalText
-        calcCell.Value = calculatedDate
+        calcCell.Value2 = calculatedDate
         calcCell.NumberFormat = "dd/mm/yyyy"
         NormalizeStandaloneDateCell = True
     Else

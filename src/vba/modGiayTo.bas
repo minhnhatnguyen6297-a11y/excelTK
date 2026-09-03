@@ -7,7 +7,7 @@ Public Sub UpdateGiayToForRow(ByVal rowIndex As Long)
     Dim noiCap As String
     Dim nhanDiaChi As String
 
-    issuedDate = PersonTechCell(rowIndex, COL_ISSUED_CALC).Value
+    issuedDate = PersonTechCell(rowIndex, COL_ISSUED_CALC).Value2
     If Not IsDate(issuedDate) Then
         PersonTechCell(rowIndex, COL_LOAI_CC).ClearContents
         PersonTechCell(rowIndex, COL_NOI_CAP_CC).ClearContents
