@@ -65,7 +65,12 @@ function Get-Placeholders {
     param([string]$Text)
 
     $matches = [regex]::Matches($Text, '\[[^\]\r\n]+\]|\{\{[^}\r\n]+\}\}')
-    return @($matches | ForEach-Object { $_.Value.Trim() })
+    return @($matches | ForEach-Object {
+        $value = $_.Value.Trim()
+        # Numbered form section labels such as [01] and [06.1] are printed
+        # document text, not placeholders. Do not report them as legacy tokens.
+        if ($value -notmatch '^\[[0-9]+(?:\.[0-9]+)*\]$') { $value }
+    })
 }
 
 function Get-AssetSlots {

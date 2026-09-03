@@ -72,28 +72,6 @@ Private Function ProfileFieldName(ByVal labelText As String) As String
     End Select
 End Function
 
-Public Function LegacySlotValue(ByVal slot As Long, ByVal fieldName As String) As String
-    Dim rowIndex As Long, cellValue As Variant
-    If fieldName = "Nam chet" Then slot = 1
-    If fieldName = "Nam chet 2" Then slot = 2
-    rowIndex = SlotPersonRow(slot)
-    If rowIndex = 0 Then Exit Function
-    Select Case fieldName
-        Case "Ten": cellValue = PersonCell(rowIndex, COL_NAME).Value2
-        Case "Nam sinh": cellValue = PersonCell(rowIndex, COL_BIRTH).Value2
-        Case "CCCD": cellValue = PersonCell(rowIndex, COL_DOCNO).Value2
-        Case "Ngay cap": cellValue = PersonCell(rowIndex, COL_ISSUED).Value2
-        Case "Dia chi": cellValue = PersonCell(rowIndex, COL_ADDRESS).Value2
-        Case "Loai CC": cellValue = PersonTechCell(rowIndex, COL_LOAI_CC).Value2
-        Case "Noi cap CC": cellValue = PersonTechCell(rowIndex, COL_NOI_CAP_CC).Value2
-        Case "Thuong tru": cellValue = PersonTechCell(rowIndex, COL_NHAN_DIA_CHI).Value2
-        Case "Nam chet": cellValue = PersonCell(rowIndex, COL_DEATH).Value2
-        Case "Nam chet 2": cellValue = PersonCell(rowIndex, COL_DEATH).Value2
-        Case Else: Exit Function
-    End Select
-    LegacySlotValue = ValueToExportText(cellValue)
-End Function
-
 Private Function SlotPersonRow(ByVal slot As Long) As Long
     Dim lo As ListObject, r As Long, i As Long, j As Long, ownerCount As Long, otherCount As Long
     Dim owners() As Long, others() As Long, swapRow As Long
@@ -118,6 +96,155 @@ Private Function SlotPersonRow(ByVal slot As Long) As Long
     Next j, i
     If slot <= ownerCount And slot <= 2 Then SlotPersonRow = owners(slot)
     If slot > 2 And slot - 2 <= otherCount Then SlotPersonRow = others(slot - 2)
+End Function
+
+Public Function StaticTokenValue(ByVal tokenName As String, ByRef found As Boolean) As String
+    Dim baseName As String
+    Dim slot As Long
+    Dim personMatches As Long
+    Dim assetMatches As Long
+    Dim profileMatches As Long
+    Dim totalMatches As Long
+    Dim resolvedValue As String
+
+    found = False
+    tokenName = LCase$(Trim$(tokenName))
+    If Len(tokenName) = 0 Then Exit Function
+
+    SplitTokenSlot tokenName, baseName, slot
+    If slot > 0 Then
+        personMatches = PersonStaticMatches(baseName, slot, resolvedValue)
+        totalMatches = personMatches
+        If personMatches = 0 Then resolvedValue = vbNullString
+
+        assetMatches = AssetStaticMatches(baseName, slot, resolvedValue)
+        totalMatches = totalMatches + assetMatches
+    End If
+
+    profileMatches = ProfileStaticMatches(tokenName, resolvedValue)
+    totalMatches = totalMatches + profileMatches
+
+    If totalMatches = 0 Then Exit Function
+    found = True
+    If totalMatches > 1 Then
+        StaticTokenValue = "#TRUNG_TEN:" & tokenName & "#"
+    Else
+        StaticTokenValue = resolvedValue
+    End If
+End Function
+
+Private Sub SplitTokenSlot(ByVal tokenName As String, ByRef baseName As String, ByRef slot As Long)
+    Dim digitText As String
+    Dim charIndex As Long
+    Dim currentChar As String
+
+    baseName = tokenName
+    slot = 0
+    For charIndex = Len(tokenName) To 1 Step -1
+        currentChar = Mid$(tokenName, charIndex, 1)
+        If currentChar >= "0" And currentChar <= "9" Then
+            digitText = currentChar & digitText
+        Else
+            Exit For
+        End If
+    Next charIndex
+
+    If Len(digitText) > 0 Then
+        slot = SafeLong(digitText, 0)
+        baseName = Left$(tokenName, Len(tokenName) - Len(digitText))
+    End If
+End Sub
+
+Private Function PersonStaticMatches(ByVal baseName As String, ByVal slot As Long, _
+                                     ByRef valueText As String) As Long
+    Dim ws As Worksheet
+    Dim lo As ListObject
+    Dim columnNumber As Long
+    Dim extensionColumn As Long
+    Dim rowIndex As Long
+    Dim standardHeader As String
+    Dim headerText As String
+
+    If slot < 1 Then Exit Function
+    Set lo = PeopleTable()
+    Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
+
+    standardHeader = PersonHeaderForToken(baseName)
+    If Len(standardHeader) > 0 Then PersonStaticMatches = 1
+
+    For columnNumber = PERSON_EXTENSION_FIRST_COLUMN To PERSON_EXTENSION_LAST_COLUMN
+        headerText = NormalizeKey(ws.Cells(PERSON_EXTENSION_HEADER_ROW, columnNumber).Value2)
+        If Len(headerText) > 0 And headerText = baseName Then
+            PersonStaticMatches = PersonStaticMatches + 1
+            extensionColumn = columnNumber
+        End If
+    Next columnNumber
+
+    If PersonStaticMatches <> 1 Then Exit Function
+    rowIndex = SlotPersonRow(slot)
+    If rowIndex = 0 Then Exit Function
+    If Len(standardHeader) > 0 Then
+        valueText = ValueToExportText(PersonCell(rowIndex, standardHeader).Value2)
+    ElseIf extensionColumn > 0 Then
+        valueText = ValueToExportText(ws.Cells(lo.DataBodyRange.Row + rowIndex - 1, extensionColumn).Value2)
+    End If
+End Function
+
+Private Function PersonHeaderForToken(ByVal baseName As String) As String
+    Select Case baseName
+        Case "ten": PersonHeaderForToken = COL_NAME
+        Case "namsinh": PersonHeaderForToken = COL_BIRTH
+        Case "namchet": PersonHeaderForToken = COL_DEATH
+        Case "cccd": PersonHeaderForToken = COL_DOCNO
+        Case "ngaycap": PersonHeaderForToken = COL_ISSUED
+        Case "diachi": PersonHeaderForToken = COL_ADDRESS
+        Case "loaicc": PersonHeaderForToken = COL_LOAI_CC
+        Case "noicapcc": PersonHeaderForToken = COL_NOI_CAP_CC
+        Case "thuongtru": PersonHeaderForToken = COL_NHAN_DIA_CHI
+    End Select
+End Function
+
+Private Function AssetStaticMatches(ByVal baseName As String, ByVal slot As Long, _
+                                    ByRef valueText As String) As Long
+    Dim ws As Worksheet
+    Dim fieldOffset As Long
+    Dim matchedOffset As Long
+    Dim labelText As String
+
+    If slot < 1 Or slot > ASSET_CARD_COUNT Then Exit Function
+    Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
+    For fieldOffset = 1 To ASSET_FIELD_COUNT
+        labelText = NormalizeKey(ws.Cells(ASSET_FIRST_CARD_ROW + fieldOffset, _
+                                         ASSET_FIRST_CARD_COLUMN).Value2)
+        If Len(labelText) > 0 And labelText = baseName Then
+            AssetStaticMatches = AssetStaticMatches + 1
+            matchedOffset = fieldOffset
+        End If
+    Next fieldOffset
+
+    If AssetStaticMatches = 1 Then
+        valueText = ValueToExportText(AssetValueCell(slot, matchedOffset).Value2)
+    End If
+End Function
+
+Private Function ProfileStaticMatches(ByVal tokenName As String, ByRef valueText As String) As Long
+    Dim ws As Worksheet
+    Dim profileRow As Long
+    Dim labelText As String
+    Dim matchedRow As Long
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
+    For profileRow = PROFILE_FIRST_DATA_ROW To ProfileLastDataRow()
+        labelText = NormalizeKey(ws.Cells(profileRow, 2).Value2)
+        If Len(labelText) > 0 And labelText = tokenName Then
+            ProfileStaticMatches = ProfileStaticMatches + 1
+            matchedRow = profileRow
+        End If
+    Next profileRow
+
+    If ProfileStaticMatches = 1 Then
+        valueText = ValueToExportText(ws.Cells(matchedRow, 3).Value2)
+    End If
 End Function
 
 Private Function WriteGroupSection(ByVal wsExport As Worksheet, ByVal startRow As Long, _

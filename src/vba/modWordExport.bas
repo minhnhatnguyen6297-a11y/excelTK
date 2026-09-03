@@ -186,6 +186,7 @@ Public Function RunWordExport(Optional ByVal silent As Boolean = False) As Boole
     ReplaceEverywhere wordDoc, "{{kiem_thu.ngay_sinh_nguoi_1}}", FirstPersonDate(COL_BIRTH)
     ReplaceEverywhere wordDoc, "{{kiem_thu.ngay_chet_nguoi_1}}", FirstPersonDate(COL_DEATH)
     ReplaceEverywhere wordDoc, "{{kiem_thu.tuoi_luc_chet_nguoi_1}}", FirstPersonAgeAtDeath()
+    ReplaceRemainingTokens wordDoc
 
     If DocumentContainsToken(wordDoc, "{{") Or DocumentContainsToken(wordDoc, "}}") Then
         errorText = "Template vẫn còn placeholder chưa được thay."
@@ -287,10 +288,130 @@ Private Sub ReplaceInRange(ByVal sourceRange As Object, ByVal findText As String
         If Not searchRange.Find.Execute Then Exit Do
 
         lengthChange = Len(replacementText) - Len(findText)
-        searchRange.Text = replacementText
+        searchRange.Text = vbNullString
+        InsertReplacementText searchRange, replacementText
         originalEnd = originalEnd + lengthChange
         searchRange.Start = searchRange.End
         searchRange.End = originalEnd
+    Loop
+End Sub
+
+Private Sub ReplaceRemainingTokens(ByVal wordDoc As Object)
+    Dim storyRange As Object
+    Dim currentRange As Object
+    Dim shapeItem As Object
+    Dim sectionItem As Object
+    Dim headerFooter As Object
+
+    For Each storyRange In wordDoc.StoryRanges
+        Set currentRange = storyRange
+        Do While Not currentRange Is Nothing
+            ReplaceTokenPattern currentRange
+            Set currentRange = currentRange.NextStoryRange
+        Loop
+    Next storyRange
+
+    For Each shapeItem In wordDoc.Shapes
+        ReplaceTokenInShape shapeItem
+    Next shapeItem
+
+    For Each sectionItem In wordDoc.Sections
+        For Each headerFooter In sectionItem.Headers
+            For Each shapeItem In headerFooter.Shapes
+                ReplaceTokenInShape shapeItem
+            Next shapeItem
+        Next headerFooter
+        For Each headerFooter In sectionItem.Footers
+            For Each shapeItem In headerFooter.Shapes
+                ReplaceTokenInShape shapeItem
+            Next shapeItem
+        Next headerFooter
+    Next sectionItem
+End Sub
+
+Private Sub ReplaceTokenInShape(ByVal shapeItem As Object)
+    On Error Resume Next
+    If shapeItem.TextFrame.HasText Then ReplaceTokenPattern shapeItem.TextFrame.TextRange
+    On Error GoTo 0
+End Sub
+
+Private Sub ReplaceTokenPattern(ByVal sourceRange As Object)
+    Dim searchRange As Object
+    Dim originalEnd As Long
+    Dim lengthChange As Long
+    Dim tokenText As String
+    Dim replacementText As String
+
+    Set searchRange = sourceRange.Duplicate
+    originalEnd = searchRange.End
+    Do
+        With searchRange.Find
+            .ClearFormatting
+            .Text = "\{\{[!}]@\}\}"
+            .Forward = True
+            .Wrap = 0
+            .Format = False
+            .MatchWildcards = True
+        End With
+        If Not searchRange.Find.Execute Then Exit Do
+
+        tokenText = CStr(searchRange.Text)
+        replacementText = ResolveStaticTokenText(tokenText)
+        lengthChange = Len(replacementText) - Len(tokenText)
+        searchRange.Text = vbNullString
+        InsertReplacementText searchRange, replacementText
+        originalEnd = originalEnd + lengthChange
+        searchRange.Start = searchRange.End
+        searchRange.End = originalEnd
+    Loop
+End Sub
+
+Private Function ResolveStaticTokenText(ByVal tokenText As String) As String
+    Dim innerText As String
+    Dim found As Boolean
+
+    innerText = Mid$(tokenText, 3, Len(tokenText) - 4)
+    If InStr(1, innerText, ".", vbBinaryCompare) > 0 Or _
+       InStr(1, innerText, "_", vbBinaryCompare) > 0 Then
+        ResolveStaticTokenText = "#CHUA_HO_TRO_DONG:" & innerText & "#"
+    ElseIf Not IsStaticTokenName(innerText) Then
+        ResolveStaticTokenText = "#PLACEHOLDER_SAI:" & innerText & "#"
+    Else
+        ResolveStaticTokenText = StaticTokenValue(innerText, found)
+        If Not found Then ResolveStaticTokenText = "#KHONG_CO_TRUONG:" & innerText & "#"
+    End If
+End Function
+
+Private Function IsStaticTokenName(ByVal tokenName As String) As Boolean
+    Dim charIndex As Long
+    Dim currentChar As String
+
+    If Len(tokenName) = 0 Then Exit Function
+    currentChar = Left$(tokenName, 1)
+    If currentChar < "a" Or currentChar > "z" Then Exit Function
+    For charIndex = 2 To Len(tokenName)
+        currentChar = Mid$(tokenName, charIndex, 1)
+        If Not ((currentChar >= "a" And currentChar <= "z") Or _
+                (currentChar >= "0" And currentChar <= "9")) Then Exit Function
+    Next charIndex
+    IsStaticTokenName = True
+End Function
+
+Private Sub InsertReplacementText(ByVal target As Object, ByVal valueText As String)
+    Dim startAt As Long
+    Dim chunkText As String
+
+    If Len(valueText) <= 254 Then
+        If Len(valueText) > 0 Then target.InsertAfter Replace$(valueText, vbCrLf, vbVerticalTab)
+        Exit Sub
+    End If
+
+    startAt = 1
+    Do While startAt <= Len(valueText)
+        chunkText = Mid$(valueText, startAt, 254)
+        target.InsertAfter Replace$(chunkText, vbCrLf, vbVerticalTab)
+        target.Start = target.End
+        startAt = startAt + 254
     Loop
 End Sub
 
