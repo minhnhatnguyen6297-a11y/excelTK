@@ -111,7 +111,7 @@ Private Sub NormalizeOneDateCell(ByVal inputCell As Range, ByVal rawHeader As St
         End If
     End If
 
-    inputCell.NumberFormat = "@"
+    NormalizeInputTextCell inputCell
     If Len(Trim$(ValueToExportText(inputCell.Value2))) = 0 Then
         inputCell.ClearContents
         rawCell.ClearContents
@@ -145,7 +145,7 @@ Public Function NormalizeStandaloneDateCell(ByVal inputCell As Range, ByVal rawC
     Dim calculatedDate As Date
     Dim errorReason As String
 
-    inputCell.NumberFormat = "@"
+    NormalizeInputTextCell inputCell
     If Len(Trim$(ValueToExportText(inputCell.Value2))) = 0 Then
         inputCell.ClearContents
         rawCell.ClearContents

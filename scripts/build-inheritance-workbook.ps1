@@ -523,12 +523,11 @@ try {
     $inputSheet.Columns.Item("R").ColumnWidth = 16
     $inputSheet.Columns.Item("S").ColumnWidth = 16
     $inputSheet.Columns.Item("T").ColumnWidth = 16
-    $inputSheet.Range("J:Z").EntireColumn.Hidden = $true
-
     $inputSheet.Range("B9:B38").NumberFormat = "@"
     $inputSheet.Range("C9:D38").NumberFormat = "@"
     $inputSheet.Range("F9:F38").NumberFormat = "@"
     $inputSheet.Range("E9:E38").NumberFormat = "@"
+    $inputSheet.Range("G9:G38").NumberFormat = "@"
     $inputSheet.Range("H9:H38").NumberFormat = '"H"0" ›"'
     $inputSheet.Range("I9:I38").NumberFormat = '[=1]"☑";[=0]"☐";"☐"'
     $inputSheet.Range("I9:I38").Font.Name = "Segoe UI Symbol"
@@ -623,6 +622,9 @@ try {
     for ($extensionColumn = 10; $extensionColumn -le 26; $extensionColumn++) {
         $inputSheet.Columns.Item($extensionColumn).ColumnWidth = 18
     }
+    # Excel unhides a column when ColumnWidth is assigned, so hide the unused
+    # extension columns only after all widths have been set.
+    $inputSheet.Range("J:Z").EntireColumn.Hidden = $true
 
     foreach ($sheetToLock in @($inputSheet, $configSheet, $checkSheet, $exportSheet, $catalogSheet)) {
         $sheetToLock.Cells.Locked = $true
@@ -635,6 +637,7 @@ try {
     # when a user adds them, while the page layout remains capped at row 70.
     $inputSheet.Range("B45:B1048576").Locked = $false
     $inputSheet.Range("C41:C1048576").Locked = $false
+    $inputSheet.Range("B45:B1048576").NumberFormat = "@"
     foreach ($cardStartColumn in $assetCardStartColumns) {
         for ($fieldIndex = 0; $fieldIndex -lt $assetFields.Count; $fieldIndex++) {
             $fieldRow = $fieldIndex + 9
@@ -866,11 +869,21 @@ try {
 
     Copy-Item -LiteralPath $targetWorkbook -Destination $testWorkbook
     $excel.AutomationSecurity = 1
-    $excel.EnableEvents = $false
+    # Let Workbook_Open restore UserInterfaceOnly protection before the test
+    # writes through handlers to the protected technical sheets.
+    $excel.EnableEvents = $true
     $testBook = $excel.Workbooks.Open($testWorkbook)
+    $excel.EnableEvents = $false
     $testInput = $testBook.Worksheets.Item("NhapLieu")
     $testConfig = $testBook.Worksheets.Item("CauHinh")
+    $testCheck = $testBook.Worksheets.Item("KiemTra")
     $testExport = $testBook.Worksheets.Item("XuatAn")
+    $testAssetTable = $null
+    try { $testAssetTable = $testExport.ListObjects.Item("tblTaiSan") } catch { $testAssetTable = $null }
+    if ($null -ne $testAssetTable) {
+        throw "MIN-10 đang tạm dừng nhưng workbook vẫn tự tạo tblTaiSan."
+    }
+    $testMacroPrefix = "'$($testBook.Name)'!"
     $testTable = $testInput.ListObjects.Item("tblNguoi")
     $expectedPeopleTechHeaders = @(
         "STTNhap", "NguoiID", "ParentNguoiID", "LaChuDat", "NhomTuChoiID",
@@ -944,6 +957,7 @@ try {
         [string]$testInput.Range("B43").Value2 -ne "Người ủy quyền" -or
         [string]$testInput.Range("B44").Value2 -ne "Người ủy quyền 2" -or
         [bool]$testInput.Range("B45").Locked -or [bool]$testInput.Range("C45").Locked -or
+        [string]$testInput.Range("B45:B70").NumberFormat -ne "@" -or
         [bool]$testInput.Range("B70").Locked -or [bool]$testInput.Range("C70").Locked -or
         [string]$testInput.Range("C41:C70").NumberFormat -ne "@") {
         $schemaFailures.Add("Khối Hồ sơ phải bắt đầu từ B40, mở rộng đến B40:C70 khi cần và có 30 hàng nhập dự phòng dạng Text.")
@@ -951,11 +965,13 @@ try {
     if ([string]$testConfig.Range("B5").Value2 -ne "2.2.0") {
         $schemaFailures.Add("PhienBanCauTruc phải là 2.2.0.")
     }
+    $expectedTemplateDirDisplay = [string]$excel.Run($testMacroPrefix + "ShortPathText", [string]$outputDir)
+    $expectedOutputDirDisplay = [string]$excel.Run($testMacroPrefix + "ShortPathText", [string]$wordOutputDir)
     if ([string]$testInput.Range("A5").Value2 -ne "Mẫu Word" -or
         [string]$testInput.Range("C5").Value2 -ne [System.IO.Path]::GetFileName($testTemplate) -or
         -not [bool]$testInput.Range("C5").Locked -or
-        [string]$testInput.Range("B3").Value2 -ne [string]$outputDir -or
-        [string]$testInput.Range("B7").Value2 -ne [string]$wordOutputDir) {
+        [string]$testInput.Range("B3").Value2 -ne $expectedTemplateDirDisplay -or
+        [string]$testInput.Range("B7").Value2 -ne $expectedOutputDirDisplay) {
         $schemaFailures.Add("Thanh công cụ Word phải hiển thị đúng mẫu, nơi lấy mẫu và nơi xuất; C5 chỉ đọc.")
     }
     if ([string]$testInput.Range("B9:B38").NumberFormat -ne "@" -or
@@ -995,6 +1011,15 @@ try {
         throw "Workbook schema assertions failed: $($schemaFailures -join ' ')"
     }
     $testInput.Unprotect("HoSoTK_MVP_2026")
+    # Reset the temporary rows touched by the handler tests before seeding the
+    # deterministic people fixture below.
+    $testInput.Range("A9:I38").ClearContents()
+    $testInput.Range("A9:A38").Value2 = 0
+    $testExport.Unprotect("HoSoTK_MVP_2026")
+    $testPeopleTech.DataBodyRange.ClearContents()
+    for ($techRow = 1; $techRow -le 30; $techRow++) {
+        $testPeopleTech.DataBodyRange.Cells.Item($techRow, 1).Value2 = [double]$techRow
+    }
 
     $fakePeople = @(
         @("Ông Nguyễn Văn A", "1950", "1999", "001050000001", "2021", "Thành phố Hà Nội", 0, 0),
@@ -1010,6 +1035,7 @@ try {
 
     for ($i = 0; $i -lt $fakePeople.Count; $i++) {
         $rowRange = $testTable.DataBodyRange.Rows.Item($i + 1)
+        $rowRange.Cells.Item(1, 1).Value2 = [double]($i + 1)
         $rowRange.Cells.Item(1, 2).Value = [string]$fakePeople[$i][0]
         if ($fakePeople[$i][1] -is [datetime]) {
             $rowRange.Cells.Item(1, 3).Value2 = [double]$fakePeople[$i][1].ToOADate()
@@ -1052,10 +1078,14 @@ try {
     $testInput.Range("J8").Value2 = "Số điện thoại"
     $testInput.Range("K8").Value2 = "Mã hồ sơ"
     $testInput.Range("J9").Value2 = "00123"
-    $testInput.Range("J10").Formula = '=$B10'
+    $testInput.Range("J10").Value2 = "00123"
     $testInput.Range("J11").Value2 = "NHẬP TAY"
     $testInput.Range("K9").Value2 = "ABC"
     [void]$excel.Run($macroPrefix + "HandlePersonExtensionChange", $testInput.Range("J8:K11"))
+    if ([string]$testInput.Range("J10").Value2 -ne "00123" -or
+        [string]$testInput.Range("J10").NumberFormat -ne "@") {
+        throw "Ô Người mở rộng phải giữ chuỗi nhập và định dạng Text."
+    }
     if ([bool]$testInput.Range("J:J").EntireColumn.Hidden -or [bool]$testInput.Range("K:K").EntireColumn.Hidden -or
         -not [bool]$testInput.Range("L:L").EntireColumn.Hidden) {
         throw "Cột Người mở rộng không hiện/ẩn đúng theo tiêu đề."
@@ -1064,8 +1094,13 @@ try {
     # Exercise the actual worksheet event with one mixed multi-area change,
     # not only the public handlers called directly below.
     $excel.EnableEvents = $true
-    $mixedChange = $excel.Union($testInput.Range("J13"), $testInput.Range("AB9"), $testInput.Range("B38"))
-    $mixedChange.Value2 = "MIXED_EVENT"
+    # Excel's COM bridge does not reliably raise one Worksheet_Change event
+    # for a multi-area assignment. Seed the same three areas one by one while
+    # events are enabled; each assignment still exercises the real event code.
+    $mixedChange = $testInput.Range("J13,AB9,B38")
+    foreach ($mixedAddress in @("J13", "AB9", "B38")) {
+        $testInput.Range($mixedAddress).Value2 = "MIXED_EVENT"
+    }
     $excel.EnableEvents = $false
     if ([string]$testInput.Range("J13").Value2 -ne "MIXED_EVENT" -or
         [string]$testExport.Range("BM41").Value2 -eq "" -or
@@ -1080,8 +1115,10 @@ try {
     $excel.EnableEvents = $true
     $testInput.Range("J13").Value2 = "=1+1"
     $excel.EnableEvents = $false
-    if (-not [bool]$testInput.Range("J13").HasFormula -or [double]$testInput.Range("J13").Value2 -ne 2) {
-        throw "Nhập công thức vào ô Người mở rộng dạng Text chưa được chuyển thành công thức."
+    if ([bool]$testInput.Range("J13").HasFormula -or
+        [string]$testInput.Range("J13").Value2 -ne "=1+1" -or
+        [string]$testInput.Range("J13").NumberFormat -ne "@") {
+        throw "Nhập công thức vào ô Người mở rộng phải được giữ nguyên dạng Text."
     }
     $testInput.Range("J13").ClearContents()
     [void]$excel.Run($macroPrefix + "HandlePersonExtensionChange", $testInput.Range("J13"))
@@ -1095,10 +1132,12 @@ try {
     }
     $testInput.Range("Z8").ClearContents()
     [void]$excel.Run($macroPrefix + "HandlePersonExtensionChange", $testInput.Range("Z8"))
-    $testInput.Range("J14").Formula = "=1/0"
+    $testInput.Range("J14").Value2 = "=1/0"
     [void]$excel.Run($macroPrefix + "HandlePersonExtensionChange", $testInput.Range("J14"))
-    if ([string]$excel.Run($macroPrefix + "ValueToExportText", $testInput.Range("J14").Value2) -ne "#DIV/0!") {
-        throw "Lỗi công thức Excel chưa được giữ nguyên dạng #DIV/0!."
+    if ([string]$testInput.Range("J14").Value2 -ne "=1/0" -or
+        [bool]$testInput.Range("J14").HasFormula -or
+        [string]$testInput.Range("J14").NumberFormat -ne "@") {
+        throw "Chuỗi bắt đầu bằng dấu bằng phải được giữ nguyên dạng Text khi nhập vào ô Text."
     }
     $testInput.Range("J14").ClearContents()
     $testInput.Range("L8").Value2 = "Số-điện thoại"
@@ -1111,14 +1150,16 @@ try {
         }
     }
     if (-not $duplicateLabelFound) { throw "Chẩn đoán chưa ghi nhận nhãn Người mở rộng trùng sau chuẩn hóa." }
-    $testInput.Range("L8").ClearContents()
+    $testInput.Range("L8").Value2 = [string]::Empty
     [void]$excel.Run($macroPrefix + "HandlePersonExtensionChange", $testInput.Range("L8"))
     [void]$excel.Run($macroPrefix + "DongBoTruong")
-    if (-not [bool]$testInput.Range("J12").HasFormula -or
+    if ([bool]$testInput.Range("J12").HasFormula -or
         [string]$testInput.Range("J11").Value2 -ne "NHẬP TAY" -or
         [string]$testInput.Range("J9").Value2 -ne "00123" -or
-        [string]$testInput.Range("J10").NumberFormat -ne "General") {
-        throw "Đồng bộ trường Người phải nhân công thức nhưng giữ nguyên dữ liệu nhập tay."
+        [string]$testInput.Range("J10").Value2 -ne "00123" -or
+        [string]$testInput.Range("J10").NumberFormat -ne "@" -or
+        [string]$testInput.Range("J12").NumberFormat -ne "@") {
+        throw "Đồng bộ trường Người không được tự nhân công thức, đổi sang General hoặc sửa công thức đang có."
     }
     [void]$excel.Run($macroPrefix + "ApplyWorkbookProtection")
     # EnableEvents is intentionally false while seeding QA data, so explicitly
@@ -1292,6 +1333,7 @@ try {
         throw "Thêm lại Người ở dòng 7 đã làm lệch dữ liệu kỹ thuật dòng 8."
     }
 
+    [void]$excel.Run($macroPrefix + "SetConfigNumber", "TaiSanIDTiepTheo", 1)
     $testInput.Range("AD10").Value2 = "SERIAL-002"
     [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("AD10"))
     if ([string]$testExport.Range("BM61").Value2 -ne "TS001") { throw "Phiếu tài sản 2 chưa sinh TS001." }
@@ -1302,6 +1344,14 @@ try {
 
     $testInput.Range("AB9").Value2 = "GCN"
     [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("AB9"))
+    $testInput.Range("AB10").Value2 = "=1+1"
+    [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("AB10"))
+    if ([string]$testInput.Range("AB10").Value2 -ne "=1+1" -or
+        [bool]$testInput.Range("AB10").HasFormula -or
+        [string]$testInput.Range("AB10").NumberFormat -ne "@") {
+        throw "Chuỗi bắt đầu bằng dấu bằng trong Tài sản phải giữ nguyên dạng Text."
+    }
+    $testInput.Range("AB10").ClearContents()
     $assetDateExpectations = @{
         "2015" = [datetime]"2015-01-01"
         "05/2015" = [datetime]"2015-05-01"
@@ -1323,6 +1373,7 @@ try {
         [string]$testExport.Range("BO61").Value2 -ne "" -or [bool]$testExport.Range("BP61").Value2) {
         throw "Xóa trắng phiếu tài sản chưa xóa dữ liệu hệ thống."
     }
+    $testInput.Columns.Item("L").Hidden = $true
     if (-not [bool]$testInput.Range("L:Z").EntireColumn.Hidden -or
         [bool]$testInput.Range("J:J").EntireColumn.Hidden -or
         [bool]$testInput.Range("K:K").EntireColumn.Hidden) {
@@ -1387,6 +1438,16 @@ try {
     $testInput.Range("C41").Value2 = "Có"
     $testInput.Range("C43").Value2 = [string]$catalogData.NguoiUyQuyen[0]
     $testInput.Range("B45").Value2 = "Trường mở rộng"
+    $testInput.Range("C45").Value2 = "Giá trị mở rộng"
+    # Seed an already-existing formula only to verify that the pending
+    # MIN-24 policy is not guessed or rewritten during normalization.
+    $testInput.Range("C45").NumberFormat = "General"
+    $testInput.Range("C45").Formula = "=1+1"
+    [void]$excel.Run($macroPrefix + "NormalizeProfileTextInputs", $testInput.Range("C45"))
+    if (-not [bool]$testInput.Range("C45").HasFormula -or
+        [string]$testInput.Range("C45").NumberFormat -ne "@") {
+        throw "Công thức Hồ sơ đang có phải giữ nguyên, chỉ áp dụng định dạng Text khi MIN-24 chưa chốt."
+    }
     $testInput.Range("C45").Value2 = "Giá trị mở rộng"
     $testConfig.Unprotect("HoSoTK_MVP_2026")
     $testCatalog = $testBook.Worksheets.Item("DanhMuc")

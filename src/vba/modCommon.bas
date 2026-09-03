@@ -94,15 +94,17 @@ Public Function PersonTechRowIndex(ByVal peopleRowIndex As Long) As Long
                 Exit Function
             End If
         Next techRowIndex
-
-        For techRowIndex = 1 To techTable.DataBodyRange.Rows.Count
-            If Len(Trim$(ValueToExportText(techTable.ListColumns(COL_ID).DataBodyRange.Cells(techRowIndex, 1).Value2))) = 0 Then
-                techTable.ListColumns(COL_STT).DataBodyRange.Cells(techRowIndex, 1).Value2 = inputStt
-                PersonTechRowIndex = techRowIndex
-                Exit Function
-            End If
-        Next techRowIndex
     End If
+
+    For techRowIndex = 1 To techTable.DataBodyRange.Rows.Count
+        If Len(Trim$(ValueToExportText(techTable.ListColumns(COL_ID).DataBodyRange.Cells(techRowIndex, 1).Value2))) = 0 Then
+            If inputStt > 0 Then
+                techTable.ListColumns(COL_STT).DataBodyRange.Cells(techRowIndex, 1).Value2 = inputStt
+            End If
+            PersonTechRowIndex = techRowIndex
+            Exit Function
+    End If
+    Next techRowIndex
 
     Err.Raise vbObjectError + 513, "PersonTechRowIndex", "Không tìm thấy dòng kỹ thuật Người."
 End Function
@@ -222,6 +224,22 @@ Public Function ValueToExportText(ByVal value As Variant) As String
         ValueToExportText = CStr(value)
     End If
 End Function
+
+Public Sub NormalizeInputTextCell(ByVal inputCell As Range)
+    ' MIN-24 formula behavior is still pending. Keep the input contract
+    ' (Text format) without calculating, rewriting, or promoting formulas.
+    inputCell.NumberFormat = "@"
+End Sub
+
+Public Sub NormalizeProfileTextInputs(ByVal changedRange As Range)
+    Dim affected As Range
+
+    Set affected = Intersect(changedRange, ThisWorkbook.Worksheets(SHEET_INPUT).Range("B41:C1048576"))
+    If affected Is Nothing Then Exit Sub
+    ' One range assignment keeps the open/change path cheap even though the
+    ' profile area is intentionally open-ended.
+    affected.NumberFormat = "@"
+End Sub
 
 Public Sub SetConfigText(ByVal rangeName As String, ByVal valueText As String)
     On Error GoTo MissingName
@@ -354,7 +372,18 @@ Public Function DateDisplay(ByVal value As Variant) As String
 End Function
 
 Public Function HasEngineDate(ByVal rowIndex As Long, ByVal calcHeader As String) As Boolean
-    HasEngineDate = IsDate(PersonTechCell(rowIndex, calcHeader).Value2)
+    Dim value As Variant
+
+    value = PersonTechCell(rowIndex, calcHeader).Value2
+    If IsError(value) Or IsEmpty(value) Then Exit Function
+    If IsDate(value) Then
+        HasEngineDate = True
+    ElseIf IsNumeric(value) Then
+        On Error Resume Next
+        HasEngineDate = (CDbl(value) >= -657434 And CDbl(value) <= 2958465)
+        Err.Clear
+        On Error GoTo 0
+    End If
 End Function
 
 Public Function EngineDateDisplay(ByVal rowIndex As Long, ByVal calcHeader As String) As String

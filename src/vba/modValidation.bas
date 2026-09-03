@@ -44,7 +44,6 @@ Public Function ValidateWorkbook(Optional ByVal showResults As Boolean = True) A
     Set identitySeen = CreateObject("Scripting.Dictionary")
 
     NormalizeAllDates False
-    RefreshTaiSanTable
     PrepareCheckSheet wsCheck
     maxLevel = GetHangTKToiDa()
     If maxLevel < 0 Or maxLevel > 4 Then

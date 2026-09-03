@@ -25,10 +25,14 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     Dim extensionAffected As Boolean
     Dim assetAffected As Boolean
     Dim peopleAffected As Boolean
+    Dim profileAffected As Boolean
 
     On Error GoTo SafeExit
     If Not Intersect(Target, PersonExtensionRange()) Is Nothing Then
         extensionAffected = True
+    End If
+    If Not Intersect(Target, Me.Range("B41:C1048576")) Is Nothing Then
+        profileAffected = True
     End If
 
     For assetIndex = 1 To ASSET_CARD_COUNT
@@ -48,6 +52,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If extensionAffected Then HandlePersonExtensionChange Target
     If assetAffected Then HandleTaiSanChange Target
     If peopleAffected Then HandlePeopleChange Target
+    If profileAffected Then NormalizeProfileTextInputs Target
 
 SafeExit:
     Application.EnableEvents = True

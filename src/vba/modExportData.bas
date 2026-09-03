@@ -17,7 +17,6 @@ Public Sub BuildExportData()
     nextRow = WriteGroupSection(wsExport, nextRow, "NguoiNhanDat")
     nextRow = WriteGroupSection(wsExport, nextRow, "CacNhomTuChoi")
     nextRow = WriteGroupSection(wsExport, nextRow, "CayNhanh")
-    RefreshTaiSanTable
     nextRow = WriteAssetSection(wsExport, nextRow)
     nextRow = WriteHoSoSection(wsExport, nextRow)
 
@@ -25,18 +24,48 @@ Public Sub BuildExportData()
 End Sub
 
 Private Function WriteAssetSection(ByVal ws As Worksheet, ByVal startRow As Long) As Long
-    Dim lo As ListObject, r As Long, c As Long
-    Set lo = ThisWorkbook.Worksheets(SHEET_EXPORT).ListObjects(TABLE_ASSET_EXPORT)
+    Dim headers As Variant
+    Dim assetIndex As Long
+    Dim fieldOffset As Long
+    Dim outputRow As Long
+    Dim outputColumn As Long
+
+    headers = Array("STTTaiSan", "TaiSanID", "LoaiSo", "Serial", "SoVaoSo", "SoThua", _
+                    "SoToBanDo", "DiaChiDat", "DienTich", "HinhThucSuDung", "LoaiDat", _
+                    "ThoiHanSuDung", "ONT", "CLN", "NTS", "LUC", "NguonGoc", _
+                    "NgayCapSoGoc", "NgayCapSoTinh", "CoQuanCapSo", "GhiChu")
     ws.Cells(startRow, 1).Value2 = "TaiSan"
-    For c = 1 To lo.ListColumns.Count: ws.Cells(startRow + 1, c).Value2 = lo.ListColumns(c).Name: Next c
-    If Not lo.DataBodyRange Is Nothing Then
-        For r = 1 To lo.DataBodyRange.Rows.Count
-            For c = 1 To lo.ListColumns.Count: ws.Cells(startRow + 1 + r, c).Value2 = lo.DataBodyRange.Cells(r, c).Value2: Next c
-        Next r
-        WriteAssetSection = startRow + 3 + lo.DataBodyRange.Rows.Count
-    Else
-        WriteAssetSection = startRow + 3
+    For outputColumn = LBound(headers) To UBound(headers)
+        ws.Cells(startRow + 1, outputColumn + 1).Value2 = headers(outputColumn)
+    Next outputColumn
+
+    outputRow = startRow + 2
+    For assetIndex = 1 To ASSET_CARD_COUNT
+        If TaiSanHasData(assetIndex) Then
+            ws.Cells(outputRow, 1).Value2 = assetIndex
+            ws.Cells(outputRow, 2).Value2 = AssetHiddenCell(assetIndex, ASSET_HIDDEN_ID_COLUMN).Value2
+            For fieldOffset = 1 To ASSET_FIELD_COUNT
+                outputColumn = fieldOffset + 2
+                If fieldOffset = ASSET_FIELD_NGAY_CAP_SO_OFFSET Then
+                    ws.Cells(outputRow, 18).NumberFormat = "@"
+                    ws.Cells(outputRow, 18).Value2 = AssetHiddenCell(assetIndex, ASSET_HIDDEN_ISSUED_RAW_COLUMN).Value2
+                    ws.Cells(outputRow, 19).Value2 = AssetHiddenCell(assetIndex, ASSET_HIDDEN_ISSUED_CALC_COLUMN).Value2
+                ElseIf fieldOffset < ASSET_FIELD_NGAY_CAP_SO_OFFSET Then
+                    ws.Cells(outputRow, outputColumn).Value2 = AssetValueCell(assetIndex, fieldOffset).Value2
+                ElseIf fieldOffset > ASSET_FIELD_NGAY_CAP_SO_OFFSET Then
+                    ws.Cells(outputRow, outputColumn + 1).Value2 = AssetValueCell(assetIndex, fieldOffset).Value2
+                End If
+            Next fieldOffset
+            outputRow = outputRow + 1
+        End If
+    Next assetIndex
+
+    If outputRow = startRow + 2 Then
+        ws.Cells(outputRow, 1).Value2 = "TaiSan"
+        ws.Cells(outputRow, 5).Value2 = "(no data)"
+        outputRow = outputRow + 1
     End If
+    WriteAssetSection = outputRow + 1
 End Function
 
 Private Function WriteHoSoSection(ByVal ws As Worksheet, ByVal startRow As Long) As Long

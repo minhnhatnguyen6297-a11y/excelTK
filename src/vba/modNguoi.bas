@@ -15,6 +15,7 @@ Public Sub RefreshAllPeople()
     If lo.DataBodyRange Is Nothing Then Exit Sub
     Set rows = lo.DataBodyRange
 
+    NormalizeAllPersonTextInputs
     NormalizeAllDates False
 
     For rowIndex = 1 To rows.Rows.Count
@@ -37,8 +38,10 @@ Public Sub RefreshAllPeople()
 
         If rowIndex <= 2 Then
             PersonCell(rowIndex, COL_LEVEL).Value2 = 0
-            PersonTechCell(rowIndex, COL_PARENT).ClearContents
-            PersonTechCell(rowIndex, COL_OWNER).Value2 = PersonHasData(rowIndex)
+            If PersonHasData(rowIndex) Then
+                PersonTechCell(rowIndex, COL_PARENT).ClearContents
+                PersonTechCell(rowIndex, COL_OWNER).Value2 = True
+            End If
         ElseIf PersonHasData(rowIndex) Then
             levelValue = SafeLong(PersonCell(rowIndex, COL_LEVEL).Value2, 0)
             If levelValue < 1 Or levelValue > 4 Then
@@ -79,6 +82,13 @@ Public Sub RefreshAllPeople()
         End If
     Next rowIndex
 
+    For rowIndex = 1 To 2
+        If SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0) > 0 Then
+            PersonCell(rowIndex, COL_LEVEL).Value2 = 0
+            PersonTechCell(rowIndex, COL_OWNER).Value2 = True
+        End If
+    Next rowIndex
+
     NormalizeAllDates False
     RefreshPersonExtensionColumns
     RebuildParentLinks
@@ -94,6 +104,7 @@ Public Sub RefreshPersonExtensionColumns()
 
     Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
     For columnNumber = PERSON_EXTENSION_FIRST_COLUMN To PERSON_EXTENSION_LAST_COLUMN
+        NormalizeInputTextCell ws.Cells(PERSON_EXTENSION_HEADER_ROW, columnNumber)
         headerText = Trim$(ValueToExportText(ws.Cells(PERSON_EXTENSION_HEADER_ROW, columnNumber).Value2))
         ws.Columns(columnNumber).Hidden = (Len(headerText) = 0)
         For rowNumber = PERSON_EXTENSION_FIRST_ROW To PERSON_EXTENSION_LAST_ROW
@@ -114,6 +125,7 @@ Public Sub HandlePersonExtensionChange(ByVal changedRange As Range)
 
     For Each oneCell In affected.Cells
         If oneCell.Row = PERSON_EXTENSION_HEADER_ROW Then
+            NormalizeInputTextCell oneCell
             ws.Columns(oneCell.Column).Hidden = (Len(Trim$(ValueToExportText(oneCell.Value2))) = 0)
         ElseIf oneCell.Row >= PERSON_EXTENSION_FIRST_ROW Then
             NormalizePersonExtensionCell oneCell
@@ -129,66 +141,33 @@ Public Sub SyncPersonExtensionFields()
     Dim ws As Worksheet
     Dim columnNumber As Long
     Dim rowNumber As Long
-    Dim sourceRow As Long
-    Dim headerText As String
-    Dim sourceCell As Range
-    Dim targetCell As Range
 
     Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
     For columnNumber = PERSON_EXTENSION_FIRST_COLUMN To PERSON_EXTENSION_LAST_COLUMN
-        headerText = Trim$(ValueToExportText(ws.Cells(PERSON_EXTENSION_HEADER_ROW, columnNumber).Value2))
-        If Len(headerText) > 0 Then
-            sourceRow = 0
-            For rowNumber = PERSON_EXTENSION_FIRST_ROW To PERSON_EXTENSION_LAST_ROW
-                Set sourceCell = ws.Cells(rowNumber, columnNumber)
-                NormalizePersonExtensionCell sourceCell
-                If sourceCell.HasFormula Then
-                    sourceRow = rowNumber
-                    Exit For
-                End If
-            Next rowNumber
-
-            If sourceRow > 0 Then
-                Set sourceCell = ws.Cells(sourceRow, columnNumber)
-                For rowNumber = sourceRow + 1 To PERSON_EXTENSION_LAST_ROW
-                    Set targetCell = ws.Cells(rowNumber, columnNumber)
-                    NormalizePersonExtensionCell targetCell
-                    If targetCell.HasFormula Then
-                        targetCell.NumberFormat = "General"
-                    ElseIf Len(Trim$(ValueToExportText(targetCell.Value2))) = 0 Then
-                        targetCell.FormulaR1C1 = sourceCell.FormulaR1C1
-                        targetCell.NumberFormat = "General"
-                    Else
-                        targetCell.NumberFormat = "@"
-                    End If
-                Next rowNumber
-            End If
-        End If
+        NormalizeInputTextCell ws.Cells(PERSON_EXTENSION_HEADER_ROW, columnNumber)
+        For rowNumber = PERSON_EXTENSION_FIRST_ROW To PERSON_EXTENSION_LAST_ROW
+            NormalizeInputTextCell ws.Cells(rowNumber, columnNumber)
+        Next rowNumber
     Next columnNumber
 
     RefreshPersonExtensionColumns
 End Sub
 
 Private Sub NormalizePersonExtensionCell(ByVal targetCell As Range)
-    Dim enteredText As String
-    Dim conversionFailed As Boolean
+    NormalizeInputTextCell targetCell
+End Sub
 
-    If targetCell.HasFormula Then
-        targetCell.NumberFormat = "General"
-        Exit Sub
-    End If
+Public Sub NormalizeAllPersonTextInputs()
+    Dim lo As ListObject
+    Dim rowIndex As Long
 
-    enteredText = ValueToExportText(targetCell.Value2)
-    If Left$(enteredText, 1) = "=" Then
-        On Error Resume Next
-        targetCell.NumberFormat = "General"
-        targetCell.Formula = enteredText
-        conversionFailed = (Err.Number <> 0)
-        Err.Clear
-        On Error GoTo 0
-        If Not conversionFailed And targetCell.HasFormula Then Exit Sub
-    End If
-    targetCell.NumberFormat = "@"
+    Set lo = PeopleTable()
+    If lo.DataBodyRange Is Nothing Then Exit Sub
+    For rowIndex = 1 To lo.DataBodyRange.Rows.Count
+        NormalizeInputTextCell PersonCell(rowIndex, COL_NAME)
+        NormalizeInputTextCell PersonCell(rowIndex, COL_DOCNO)
+        NormalizeInputTextCell PersonCell(rowIndex, COL_ADDRESS)
+    Next rowIndex
 End Sub
 
 Public Sub RebuildParentLinks()
@@ -279,6 +258,11 @@ Public Sub HandlePeopleChange(ByVal changedRange As Range)
     NormalizeChangedDateCells changedRange, True
 
     For Each oneCell In affected.Cells
+        If oneCell.Column = PeopleTable().ListColumns(COL_NAME).Range.Column Or _
+           oneCell.Column = PeopleTable().ListColumns(COL_DOCNO).Range.Column Or _
+           oneCell.Column = PeopleTable().ListColumns(COL_ADDRESS).Range.Column Then
+            NormalizeInputTextCell oneCell
+        End If
         rowIndex = oneCell.Row - lo.DataBodyRange.Row + 1
         If rowIndex >= 1 And rowIndex <= lo.DataBodyRange.Rows.Count Then
             If Not affectedRows.Exists(CStr(rowIndex)) Then affectedRows.Add CStr(rowIndex), rowIndex
