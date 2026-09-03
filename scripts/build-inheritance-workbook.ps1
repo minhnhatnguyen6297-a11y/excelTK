@@ -63,6 +63,40 @@ function Release-ComObject {
     }
 }
 
+function Get-WordDocumentText {
+    param([string]$Path)
+
+    $word = $null
+    $document = $null
+    try {
+        $word = New-Object -ComObject Word.Application
+        $word.Visible = $false
+        $word.DisplayAlerts = 0
+        $document = $word.Documents.Open($Path, $false, $true, $false)
+        $segments = [System.Collections.Generic.List[string]]::new()
+        foreach ($initialStory in $document.StoryRanges) {
+            $story = $initialStory
+            while ($null -ne $story) {
+                $segments.Add([string]$story.Text)
+                $nextStory = $story.NextStoryRange
+                Release-ComObject $story
+                $story = $nextStory
+            }
+        }
+        return ($segments -join [Environment]::NewLine)
+    }
+    finally {
+        if ($null -ne $document) {
+            try { $document.Close($false) } catch {}
+            Release-ComObject $document
+        }
+        if ($null -ne $word) {
+            try { $word.Quit($false) } catch {}
+            Release-ComObject $word
+        }
+    }
+}
+
 function Color-Ref {
     param([string]$Hex)
     $clean = $Hex.TrimStart('#')
@@ -1059,6 +1093,26 @@ try {
         [string]$testInput.Range("B7").Value2 -ne $expectedOutputDirDisplay) {
         $schemaFailures.Add("Thanh công cụ Word phải hiển thị đúng mẫu, nơi lấy mẫu và nơi xuất; C5 chỉ đọc.")
     }
+    if (-not [bool]$testInput.Range("B3").Locked -or
+        -not [bool]$testInput.Range("B7").Locked -or
+        [bool]$testInput.Range("B4").Locked -or
+        [bool]$testInput.Range("B9").Locked -or
+        [bool]$testInput.Range("G38").Locked -or
+        -not [bool]$testInput.Range("H9").Locked -or
+        -not [bool]$testInput.Range("I38").Locked) {
+        $schemaFailures.Add("Vùng điều khiển phải khóa ô hiển thị và ô bấm, chỉ mở B4 và B9:G38 để nhập.")
+    }
+    if (-not [bool]$testInput.ProtectContents -or
+        -not [bool]$testConfig.ProtectContents -or
+        -not [bool]$testCheck.ProtectContents -or
+        -not [bool]$testExport.ProtectContents -or
+        -not [bool]$testBook.Worksheets.Item("DanhMuc").ProtectContents -or
+        [int]$testConfig.Visible -ne 0 -or
+        [int]$testCheck.Visible -ne 0 -or
+        [int]$testBook.Worksheets.Item("DanhMuc").Visible -ne 0 -or
+        [int]$testExport.Visible -ne 2) {
+        $schemaFailures.Add("CauHinh, KiemTra, XuatAn và DanhMuc phải được bảo vệ; ba sheet kỹ thuật phải giữ đúng trạng thái ẩn.")
+    }
     if ([string]$testInput.Range("B9:B38").NumberFormat -ne "@" -or
         [string]$testInput.Range("G9:G38").NumberFormat -ne "@") {
         $schemaFailures.Add("Họ tên và địa chỉ Người phải có định dạng Text.")
@@ -1598,6 +1652,88 @@ try {
     $originalTemplatePath = [string]$excel.Run($macroPrefix + "GetConfigText", "MauWordDangChon")
     $originalTemplateFolder = [string]$excel.Run($macroPrefix + "GetConfigText", "ThuMucMauWord")
     $originalOutputFolder = [string]$excel.Run($macroPrefix + "GetConfigText", "ThuMucXuat")
+
+    # Exercise the real capacity contract with the PCDS template: it has ten
+    # person slots and one asset slot.  Eleven people and two populated cards
+    # must be reported in KiemTra, but content errors must not stop export and
+    # slot/card numbers must not be compacted.
+    $capacityOverflowFolder = Join-Path $wordOutputDir ("capacity-overflow-{0}" -f $timestamp)
+    New-Item -ItemType Directory -Force -Path $capacityOverflowFolder | Out-Null
+    $pcdsTemplatePath = Join-Path $workspace "templates\word\1. PCDS .docx"
+    [void]$excel.Run($macroPrefix + "SetConfigText", "MauWordDangChon", $pcdsTemplatePath)
+    [void]$excel.Run($macroPrefix + "SetConfigText", "ThuMucMauWord", (Split-Path -Parent $pcdsTemplatePath))
+    [void]$excel.Run($macroPrefix + "SetConfigText", "ThuMucXuat", $capacityOverflowFolder)
+
+    $overflowPeople = @(
+        @{ Row = 7; Name = "QA_OVERFLOW_PERSON_07"; Birth = "1979"; Document = "QA-DOC-07" },
+        @{ Row = 10; Name = "QA_OVERFLOW_PERSON_10"; Birth = "1980"; Document = "QA-DOC-10" },
+        @{ Row = 11; Name = "QA_OVERFLOW_PERSON_11"; Birth = "1981"; Document = "QA-DOC-11" }
+    )
+    foreach ($overflowPerson in $overflowPeople) {
+        $overflowRange = $testTable.DataBodyRange.Rows.Item([int]$overflowPerson.Row)
+        $overflowRange.Cells.Item(1, 1).Value2 = [double]$overflowPerson.Row
+        $overflowRange.Cells.Item(1, 2).Value2 = [string]$overflowPerson.Name
+        $overflowRange.Cells.Item(1, 3).Value2 = [string]$overflowPerson.Birth
+        $overflowRange.Cells.Item(1, 5).NumberFormat = "@"
+        $overflowRange.Cells.Item(1, 5).Value2 = [string]$overflowPerson.Document
+        $overflowRange.Cells.Item(1, 8).Value2 = 1
+        $overflowRange.Cells.Item(1, 9).Value2 = 0
+        Release-ComObject $overflowRange
+    }
+    [void]$excel.Run($macroPrefix + "RefreshAllPeople")
+
+    $testInput.Range("AB10").Value2 = "QA_ASSET_ONE"
+    $testInput.Range("AD9").Value2 = "QA_ASSET_TWO"
+    $testInput.Range("AD12").Value2 = "22"
+    $testInput.Range("AD14").Value2 = "QA-ASSET-ADDRESS-2"
+    $testInput.Range("AD15").Value2 = "200"
+    $testInput.Range("AD17").Value2 = "ONT"
+    [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("AB10:AD17"))
+
+    $overflowValidation = [bool]$excel.Run($macroPrefix + "ValidateWorkbook", $false)
+    if ($overflowValidation) { throw "Dữ liệu vượt sức chứa phải xuất hiện trong chẩn đoán." }
+    $capacityIssueCodes = [System.Collections.Generic.HashSet[string]]::new()
+    for ($checkRow = 5; $checkRow -le 1000; $checkRow++) {
+        $issueCode = [string]$testCheck.Cells.Item($checkRow, 2).Value2
+        if ($issueCode -in @("TEMPLATE_PEOPLE_CAPACITY", "TEMPLATE_ASSET_CAPACITY")) {
+            [void]$capacityIssueCodes.Add($issueCode)
+        }
+    }
+    if (-not $capacityIssueCodes.Contains("TEMPLATE_PEOPLE_CAPACITY") -or
+        -not $capacityIssueCodes.Contains("TEMPLATE_ASSET_CAPACITY")) {
+        throw "KiemTra chưa nêu đủ trường hợp 11 người/2 tài sản vượt sức chứa mẫu 10/1."
+    }
+    if (-not [bool]$excel.Run($macroPrefix + "RunWordExport", $true)) {
+        $exportError = [string]$excel.Run($macroPrefix + "LastWordExportError")
+        throw "Lỗi nội dung vượt sức chứa đã chặn xuất Word: $exportError"
+    }
+    $capacityOutputs = @(Get-ChildItem -LiteralPath $capacityOverflowFolder -File -Filter *.docx)
+    if ($capacityOutputs.Count -ne 1) {
+        throw "Ca vượt sức chứa không tạo đúng một file Word."
+    }
+    $capacityText = Get-WordDocumentText $capacityOutputs[0].FullName
+    if ($capacityText -notmatch "QA_OVERFLOW_PERSON_10" -or
+        $capacityText -match "QA_OVERFLOW_PERSON_11" -or
+        $capacityText -match "QA_ASSET_TWO") {
+        throw "Slot vượt sức chứa bị dồn hoặc tài sản 2 bị xuất nhầm vào mẫu chỉ có một slot."
+    }
+    Write-Output "CAPACITY_OVERFLOW_TEST=PASS"
+
+    # Remove the overflow-only rows/card before the ordinary representative
+    # exports so those outputs continue to represent the normal fixture.
+    $testInput.Unprotect("HoSoTK_MVP_2026")
+    $testInput.Range("B18:I19").ClearContents()
+    [void]$excel.Run($macroPrefix + "HandlePeopleChange", $testInput.Range("B18:I19"))
+    $testInput.Range("B15:G15").ClearContents()
+    [void]$excel.Run($macroPrefix + "HandlePeopleChange", $testInput.Range("B15:G15"))
+    $testInput.Range("AD9:AD26").ClearContents()
+    [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("AD9:AD26"))
+    [void]$excel.Run($macroPrefix + "ApplyWorkbookProtection")
+    [void]$excel.Run($macroPrefix + "SetConfigText", "MauWordDangChon", $originalTemplatePath)
+    [void]$excel.Run($macroPrefix + "SetConfigText", "ThuMucMauWord", $originalTemplateFolder)
+    [void]$excel.Run($macroPrefix + "SetConfigText", "ThuMucXuat", $originalOutputFolder)
+    [void]$excel.Run($macroPrefix + "RefreshWordSelectionDisplay")
+
     $representativeTemplates = @(
         @{ Label = "pcds"; Name = "1. PCDS .docx" },
         @{ Label = "dk18"; Name = "2. DK18, thuế  1.docx" },

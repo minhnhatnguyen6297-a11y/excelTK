@@ -240,6 +240,30 @@ Private Function PersonHeaderForToken(ByVal baseName As String) As String
     End Select
 End Function
 
+Private Function AssetTokenBaseForLabel(ByVal labelText As String) As String
+    labelText = NormalizeKey(labelText)
+    Select Case labelText
+        Case "loaiso": AssetTokenBaseForLabel = "loaiso"
+        Case "sophathanhserial", "serial": AssetTokenBaseForLabel = "serial"
+        Case "sovaoso": AssetTokenBaseForLabel = "sovaoso"
+        Case "sothua": AssetTokenBaseForLabel = "sothua"
+        Case "sotobando", "soto": AssetTokenBaseForLabel = "soto"
+        Case "diachidat": AssetTokenBaseForLabel = "diachidat"
+        Case "dientichm", "dientich": AssetTokenBaseForLabel = "dientich"
+        Case "hinhthucsudung": AssetTokenBaseForLabel = "hinhthucsudung"
+        Case "loaidat": AssetTokenBaseForLabel = "loaidat"
+        Case "thoihansudung", "thoihan": AssetTokenBaseForLabel = "thoihan"
+        Case "ontm", "ont": AssetTokenBaseForLabel = "ont"
+        Case "clnm", "cln": AssetTokenBaseForLabel = "cln"
+        Case "ntsm", "nts": AssetTokenBaseForLabel = "nts"
+        Case "lucm", "luc": AssetTokenBaseForLabel = "luc"
+        Case "nguongoc": AssetTokenBaseForLabel = "nguongoc"
+        Case "ngaycapso": AssetTokenBaseForLabel = "ngaycapso"
+        Case "coquancapso": AssetTokenBaseForLabel = "coquancapso"
+        Case "ghichu": AssetTokenBaseForLabel = "ghichu"
+    End Select
+End Function
+
 Private Function AssetStaticMatches(ByVal baseName As String, ByVal slot As Long, _
                                     ByRef valueText As String) As Long
     Dim ws As Worksheet
@@ -250,8 +274,8 @@ Private Function AssetStaticMatches(ByVal baseName As String, ByVal slot As Long
     If slot < 1 Or slot > ASSET_CARD_COUNT Then Exit Function
     Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
     For fieldOffset = 1 To ASSET_FIELD_COUNT
-        labelText = NormalizeKey(ws.Cells(ASSET_FIRST_CARD_ROW + fieldOffset, _
-                                         ASSET_FIRST_CARD_COLUMN).Value2)
+        labelText = AssetTokenBaseForLabel(ws.Cells(ASSET_FIRST_CARD_ROW + fieldOffset, _
+                                                   ASSET_FIRST_CARD_COLUMN).Value2)
         If Len(labelText) > 0 And labelText = baseName Then
             AssetStaticMatches = AssetStaticMatches + 1
             matchedOffset = fieldOffset
