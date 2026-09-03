@@ -1,10 +1,6 @@
 Attribute VB_Name = "modWordExport"
 Option Explicit
 
-Public Sub XuatVanBan()
-    Call RunWordExport(False)
-End Sub
-
 Public Sub ChonNoiLayMau()
     Dim picker As Object
     Dim selectedFolder As String
