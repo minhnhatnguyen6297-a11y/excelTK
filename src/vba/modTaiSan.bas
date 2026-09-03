@@ -43,10 +43,18 @@ Private Sub NormalizeAssetInputCell(ByVal inputCell As Range)
 End Sub
 
 Public Function TaiSanHasData(ByVal assetIndex As Long) As Boolean
-    TaiSanHasData = (Len(Trim$(ValueToExportText(AssetValueCell(assetIndex, ASSET_FIELD_LOAI_SO_OFFSET).Value2))) > 0 Or _
-                     Len(Trim$(ValueToExportText(AssetValueCell(assetIndex, ASSET_FIELD_SERIAL_OFFSET).Value2))) > 0 Or _
-                     Len(Trim$(ValueToExportText(AssetValueCell(assetIndex, ASSET_FIELD_SO_THUA_OFFSET).Value2))) > 0 Or _
-                     Len(Trim$(ValueToExportText(AssetValueCell(assetIndex, ASSET_FIELD_DIA_CHI_DAT_OFFSET).Value2))) > 0)
+    Dim fieldOffset As Long
+
+    ' A card contains data when any visible value is present.  Do not use a
+    ' short list of identifying fields here: a user may start with area,
+    ' land type, a land-use amount, or notes and the card must still receive
+    ' an ID and be included in diagnostics/export.
+    For fieldOffset = 1 To ASSET_FIELD_COUNT
+        If Len(Trim$(ValueToExportText(AssetValueCell(assetIndex, fieldOffset).Value2))) > 0 Then
+            TaiSanHasData = True
+            Exit Function
+        End If
+    Next fieldOffset
 End Function
 
 Public Sub RefreshTaiSanCard(ByVal assetIndex As Long)

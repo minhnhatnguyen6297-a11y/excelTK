@@ -191,7 +191,7 @@ Public Function ValidateWorkbook(Optional ByVal showResults As Boolean = True) A
     End If
     If Not TaiSanHasData(1) And (TaiSanHasData(2) Or TaiSanHasData(3)) Then
         AddIssue "Cảnh báo", "ASSET_1_EMPTY", 1, vbNullString, _
-                 "Phiếu TÀI SẢN 1 đang trống; hậu tố Word sẽ dồn lên.", AssetValueCell(1, ASSET_FIELD_LOAI_SO_OFFSET)
+                 "Phiếu TÀI SẢN 1 đang trống; các thẻ phía sau vẫn giữ nguyên số thứ tự.", AssetValueCell(1, ASSET_FIELD_LOAI_SO_OFFSET)
     End If
     If TemplateRequiresPlaceholder(13) Then
         If Len(Trim$(ValueToExportText(ThisWorkbook.Worksheets(SHEET_INPUT).Range("C41").Value2))) = 0 Then
@@ -280,7 +280,9 @@ Private Sub ValidateTemplateCapacity(ByVal personCount As Long)
             Exit For
         End If
     Next rowIndex
-    If Not found Or peopleCapacity <= 0 Or assetCapacity <= 0 Then
+    ' A zero capacity is valid for a template that has no numbered tokens;
+    ' only a missing catalog row means the capacity cannot be determined.
+    If Not found Then
         AddIssue "Lỗi", "TEMPLATE_CAPACITY_UNKNOWN", 0, vbNullString, _
                  "Không xác định được sức chứa của mẫu đang chọn.", ThisWorkbook.Worksheets("CauHinh").Range("B8")
         Exit Sub

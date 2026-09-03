@@ -167,9 +167,39 @@ function Create-QaCopy {
     }
 }
 
+function Get-NumberedPlaceholderSlots {
+    param(
+        [string[]]$Placeholders,
+        [string[]]$Roots,
+        [int]$MaxSlot = 0
+    )
+
+    $slots = [System.Collections.Generic.HashSet[int]]::new()
+    foreach ($placeholder in $Placeholders) {
+        $match = [regex]::Match($placeholder, '^\{\{([a-z][a-z0-9]*?)(\d*)\}\}$')
+        if (-not $match.Success -or $Roots -notcontains $match.Groups[1].Value) {
+            continue
+        }
+
+        $slotText = $match.Groups[2].Value
+        $slot = if ([string]::IsNullOrWhiteSpace($slotText)) { 1 } else { [int]$slotText }
+        if ($MaxSlot -gt 0 -and $slot -gt $MaxSlot) {
+            continue
+        }
+        [void]$slots.Add($slot)
+    }
+    return @($slots | Sort-Object)
+}
+
 function Get-WordCapacityRows {
     param([string]$ReportPath)
 
+    $personRoots = @("ten", "namsinh", "namchet", "cccd", "ngaycap", "diachi", "loaicc", "noicapcc", "thuongtru")
+    $assetRoots = @(
+        "loaiso", "serial", "sovaoso", "sothua", "soto", "diachidat",
+        "dientich", "hinhthucsudung", "loaidat", "thoihan", "ont", "cln",
+        "nts", "luc", "nguongoc", "ngaycapso", "coquancapso", "ghichu"
+    )
     $lines = Get-Content -LiteralPath $ReportPath -Encoding UTF8
     $rows = @()
     for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
@@ -188,23 +218,35 @@ function Get-WordCapacityRows {
         }
 
         $peopleCapacity = 0
+        $assetCapacity = 0
         $hasNiemYet = $false
         $hasUyQuyen = $false
         if ($sectionStart -ge 0) {
             for ($detailIndex = $sectionStart + 1; $detailIndex -lt $lines.Count; $detailIndex++) {
                 if ($lines[$detailIndex] -match '^## ') { break }
-                $nameMatches = [regex]::Matches($lines[$detailIndex], '\[Tên (\d+)\]')
-                if ($lines[$detailIndex] -match '\[(Niêm Yết|Niem Yet)\]') { $hasNiemYet = $true }
-                if ($lines[$detailIndex] -match '\[(Người ủy quyền|Nguoi uy quyen)\]') { $hasUyQuyen = $true }
-                foreach ($nameMatch in $nameMatches) {
+                $linePlaceholders = @([regex]::Matches($lines[$detailIndex], '\{\{[^}\r\n]+\}\}') | ForEach-Object { $_.Value })
+                foreach ($slot in @(Get-NumberedPlaceholderSlots -Placeholders $linePlaceholders -Roots $personRoots -MaxSlot 30)) {
+                    $peopleCapacity = [Math]::Max($peopleCapacity, [int]$slot)
+                }
+                foreach ($slot in @(Get-NumberedPlaceholderSlots -Placeholders $linePlaceholders -Roots $assetRoots -MaxSlot 3)) {
+                    $assetCapacity = [Math]::Max($assetCapacity, [int]$slot)
+                }
+                if ($lines[$detailIndex] -match '\{\{niemyet\}\}|\[(Niêm Yết|Niem Yet)\]') { $hasNiemYet = $true }
+                if ($lines[$detailIndex] -match '\{\{nguoiuyquyen(?:\d+)?\}\}|\[(Người ủy quyền|Nguoi uy quyen)\]') { $hasUyQuyen = $true }
+                # Keep old reports readable while they are regenerated.  New
+                # reports use only {{...}} and are handled above.
+                foreach ($nameMatch in [regex]::Matches($lines[$detailIndex], '\[Tên (\d+)\]')) {
                     $peopleCapacity = [Math]::Max($peopleCapacity, [int]$nameMatch.Groups[1].Value)
                 }
             }
         }
 
-        $assetCapacity = 0
-        foreach ($assetMatch in [regex]::Matches($assetText, '(\d+)')) {
-            $assetCapacity = [Math]::Max($assetCapacity, [int]$assetMatch.Groups[1].Value)
+        # Old reports stored only a display string such as "Tài sản 1, 2".
+        # Use it as a fallback, never as the primary source for {{...}} data.
+        if ($assetCapacity -eq 0) {
+            foreach ($assetMatch in [regex]::Matches($assetText, '(\d+)')) {
+                $assetCapacity = [Math]::Max($assetCapacity, [int]$assetMatch.Groups[1].Value)
+            }
         }
         $rows += [pscustomobject]@{
             TemplateName = $templateName
@@ -261,7 +303,7 @@ $baseOperations = @(
     @{ command = "set"; path = "/CauHinh/A11"; props = @{ value = "ThuMucMauWord" } },
     @{ command = "set"; path = "/CauHinh/A12"; props = @{ value = "SucChuaTaiSanMau" } },
     @{ command = "set"; path = "/KiemTra/A1"; props = @{ value = "KẾT QUẢ KIỂM TRA DỮ LIỆU" } },
-    @{ command = "set"; path = "/KiemTra/A2"; props = @{ value = "Số lỗi chặn" } },
+    @{ command = "set"; path = "/KiemTra/A2"; props = @{ value = "Số lỗi nội dung" } },
     @{ command = "set"; path = "/KiemTra/A3"; props = @{ value = "Số cảnh báo" } },
     @{ command = "set"; path = "/XuatAn/A1"; props = @{ value = "DỮ LIỆU XUẤT — KHÔNG NHẬP TAY" } }
 )
@@ -358,6 +400,49 @@ try {
     $catalogSheet.Range("A3:H3").Interior.Color = Color-Ref "D8EBFF"
 
     $capacityRows = Get-WordCapacityRows -ReportPath $placeholderReport
+    $capacityFixturePath = Join-Path $outputDir "capacity-parser-fixture-$timestamp.md"
+    @(
+        "# Kiểm thử sức chứa",
+        "",
+        "| Mẫu 10 slot.docx | Nhóm | .docx | 2 | 4 | Tài sản 1 |",
+        "",
+        "## Mẫu 10 slot.docx",
+        "",
+        "| {{ten10}} | 1 |",
+        "| {{ten1}} | 1 |",
+        "| {{loaiso1}} | 1 |",
+        "",
+        "## Mẫu 2 tài sản.docx",
+        "",
+        "| {{loaiso1}} | 1 |",
+        "| {{loaiso2}} | 1 |",
+        "| {{serial2}} | 1 |"
+    ) | Set-Content -LiteralPath $capacityFixturePath -Encoding UTF8
+    $capacityFixtureRows = @(Get-WordCapacityRows -ReportPath $capacityFixturePath)
+    $capacityFixtureRow = $capacityFixtureRows | Where-Object { $_.TemplateName -eq "Mẫu 10 slot.docx" }
+    if ($null -eq $capacityFixtureRow -or [int]$capacityFixtureRow.SucChuaNguoi -ne 10 -or
+        [int]$capacityFixtureRow.SucChuaTaiSan -ne 1) {
+        throw "Parser sức chứa không đọc đúng token {{ten10}}/{{loaiso1}} trong báo cáo mẫu."
+    }
+    # A second asset must be counted even if the first asset is also present;
+    # the card number is never compacted or inferred from row order.
+    $capacityFixtureRows = @(
+        "# Kiểm thử sức chứa tài sản",
+        "",
+        "| Mẫu 2 tài sản.docx | Nhóm | .docx | 2 | 3 | Tài sản 1, 2 |",
+        "",
+        "## Mẫu 2 tài sản.docx",
+        "",
+        "| {{loaiso1}} | 1 |",
+        "| {{loaiso2}} | 1 |",
+        "| {{serial2}} | 1 |"
+    ) | Set-Content -LiteralPath $capacityFixturePath -Encoding UTF8
+    $capacityFixtureRows = @(Get-WordCapacityRows -ReportPath $capacityFixturePath)
+    $capacityFixtureRow = $capacityFixtureRows | Where-Object { $_.TemplateName -eq "Mẫu 2 tài sản.docx" }
+    if ($null -eq $capacityFixtureRow -or [int]$capacityFixtureRow.SucChuaTaiSan -ne 2) {
+        throw "Parser sức chứa không giữ đúng số thẻ tài sản 1 và 2."
+    }
+    Remove-Item -LiteralPath $capacityFixturePath -Force
     $catalogSheet.Range("J3").Value2 = "TenMau"
     $catalogSheet.Range("K3").Value2 = "SucChuaNguoi"
     $catalogSheet.Range("L3").Value2 = "SucChuaTaiSan"
@@ -1365,6 +1450,19 @@ try {
             [math]::Abs(([double]$testExport.Range("BO41").Value2) - $assetDateExpectations[$dateText].ToOADate()) -gt 0.0001) {
             throw "Ngày cấp sổ '$dateText' không được giữ nguyên và chuẩn hóa đúng."
         }
+    }
+
+    # A card is non-empty when any of its 18 visible values is present, not
+    # only the four identifying fields.  This catches the common case where a
+    # user starts by entering diện tích (AB15) or loại đất (AB17).
+    $testInput.Range("AB9:AB26").ClearContents()
+    [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("AB9:AB26"))
+    $testInput.Range("AB15").Value2 = "100"
+    [void]$excel.Run($macroPrefix + "HandleTaiSanChange", $testInput.Range("AB15"))
+    if (-not [bool]$excel.Run($macroPrefix + "TaiSanHasData", 1) -or
+        [string]::IsNullOrWhiteSpace([string]$testExport.Range("BM41").Value2) -or
+        -not [bool]$testExport.Range("BP41").Value2) {
+        throw "Thẻ tài sản chỉ có Diện tích phải vẫn được nhận diện là có dữ liệu."
     }
 
     $testInput.Range("AD10").ClearContents()

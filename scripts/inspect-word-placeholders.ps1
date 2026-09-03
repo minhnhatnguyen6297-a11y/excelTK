@@ -73,22 +73,39 @@ function Get-Placeholders {
     })
 }
 
-function Get-AssetSlots {
-    param([string[]]$Placeholders)
+function Get-NumberedPlaceholderSlots {
+    param(
+        [string[]]$Placeholders,
+        [string[]]$Roots,
+        [int]$MaxSlot = 0
+    )
 
     $slots = [System.Collections.Generic.HashSet[int]]::new()
     foreach ($placeholder in $Placeholders) {
-        if ($placeholder -notmatch '^\[(Serial|Số thửa|Tờ bản đồ|Loại sổ|Diện tích|Địa chỉ thửa đất)(?: (\d+))?\]$') {
+        $match = [regex]::Match($placeholder, '^\{\{([a-z][a-z0-9]*?)(\d*)\}\}$')
+        if (-not $match.Success -or $Roots -notcontains $match.Groups[1].Value) {
             continue
         }
-        if ([string]::IsNullOrWhiteSpace($Matches[2])) {
-            [void]$slots.Add(1)
+
+        $slotText = $match.Groups[2].Value
+        $slot = if ([string]::IsNullOrWhiteSpace($slotText)) { 1 } else { [int]$slotText }
+        if ($MaxSlot -gt 0 -and $slot -gt $MaxSlot) {
+            continue
         }
-        else {
-            [void]$slots.Add([int]$Matches[2])
-        }
+        [void]$slots.Add($slot)
     }
     return @($slots | Sort-Object)
+}
+
+function Get-AssetSlots {
+    param([string[]]$Placeholders)
+
+    $assetRoots = @(
+        "loaiso", "serial", "sovaoso", "sothua", "soto", "diachidat",
+        "dientich", "hinhthucsudung", "loaidat", "thoihan", "ont", "cln",
+        "nts", "luc", "nguongoc", "ngaycapso", "coquancapso", "ghichu"
+    )
+    return @(Get-NumberedPlaceholderSlots -Placeholders $Placeholders -Roots $assetRoots -MaxSlot 3)
 }
 
 function ConvertTo-MarkdownCell {
