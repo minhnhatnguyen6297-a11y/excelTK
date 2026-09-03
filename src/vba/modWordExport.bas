@@ -1,6 +1,12 @@
 Attribute VB_Name = "modWordExport"
 Option Explicit
 
+Private mLastWordExportError As String
+
+Public Function LastWordExportError() As String
+    LastWordExportError = mLastWordExportError
+End Function
+
 Public Sub ChonNoiLayMau()
     Dim picker As Object
     Dim selectedFolder As String
@@ -147,16 +153,22 @@ Public Function RunWordExport(Optional ByVal silent As Boolean = False) As Boole
     Dim outputFolder As String
     Dim outputPath As String
     Dim errorText As String
+    Dim stageText As String
 
     On Error GoTo ExportFailed
 
+    mLastWordExportError = vbNullString
     Application.ScreenUpdating = False
     Application.EnableEvents = False
+    stageText = "RefreshWordSelectionDisplay"
     RefreshWordSelectionDisplay
+    stageText = "RefreshAllPeople"
     RefreshAllPeople
 
+    stageText = "ValidateWorkbook"
     Call ValidateWorkbook(Not silent)
 
+    stageText = "BuildExportData"
     BuildExportData
     templatePath = GetConfigText("DuongDanMauWord")
     outputFolder = GetConfigText("ThuMucXuat")
@@ -176,8 +188,10 @@ Public Function RunWordExport(Optional ByVal silent As Boolean = False) As Boole
     Set wordApp = CreateObject("Word.Application")
     wordApp.Visible = False
     wordApp.DisplayAlerts = 0
+    stageText = "Word.Documents.Open"
     Set wordDoc = wordApp.Documents.Open(templatePath, False, True)
 
+    stageText = "Replace dynamic tokens"
     ReplaceEverywhere wordDoc, "{{chu_dat.danh_sach}}", GroupNameList("ChuDat")
     ReplaceEverywhere wordDoc, "{{nguoi_da_chet.danh_sach}}", GroupNameList("NguoiDaChet")
     ReplaceEverywhere wordDoc, "{{nguoi_nhan_dat.danh_sach}}", GroupNameList("NguoiNhanDat")
@@ -186,14 +200,17 @@ Public Function RunWordExport(Optional ByVal silent As Boolean = False) As Boole
     ReplaceEverywhere wordDoc, "{{kiem_thu.ngay_sinh_nguoi_1}}", FirstPersonDate(COL_BIRTH)
     ReplaceEverywhere wordDoc, "{{kiem_thu.ngay_chet_nguoi_1}}", FirstPersonDate(COL_DEATH)
     ReplaceEverywhere wordDoc, "{{kiem_thu.tuoi_luc_chet_nguoi_1}}", FirstPersonAgeAtDeath()
+    stageText = "Replace static tokens"
     ReplaceRemainingTokens wordDoc
 
+    stageText = "Check remaining tokens"
     If DocumentContainsToken(wordDoc, "{{") Or DocumentContainsToken(wordDoc, "}}") Then
         errorText = "Template vẫn còn placeholder chưa được thay."
         GoTo ExportFailed
     End If
 
     wordDoc.SaveAs2 outputPath, 16
+    stageText = "Close Word"
     wordDoc.Close False
     Set wordDoc = Nothing
     wordApp.Quit False
@@ -211,7 +228,8 @@ CleanExit:
     Exit Function
 
 ExportFailed:
-    If Len(errorText) = 0 Then errorText = Err.Description
+    If Len(errorText) = 0 Then errorText = stageText & ": " & Err.Description
+    mLastWordExportError = errorText
     On Error Resume Next
     If Not wordDoc Is Nothing Then wordDoc.Close False
     If Not wordApp Is Nothing Then wordApp.Quit False
@@ -342,6 +360,7 @@ Private Sub ReplaceTokenPattern(ByVal sourceRange As Object)
     Dim tokenText As String
     Dim replacementText As String
 
+    On Error GoTo TokenFailed
     Set searchRange = sourceRange.Duplicate
     originalEnd = searchRange.End
     Do
@@ -364,12 +383,17 @@ Private Sub ReplaceTokenPattern(ByVal sourceRange As Object)
         searchRange.Start = searchRange.End
         searchRange.End = originalEnd
     Loop
+    Exit Sub
+
+TokenFailed:
+    Err.Raise Err.Number, "ReplaceTokenPattern", "token=" & tokenText & ": " & Err.Description
 End Sub
 
 Private Function ResolveStaticTokenText(ByVal tokenText As String) As String
     Dim innerText As String
     Dim found As Boolean
 
+    On Error GoTo ResolveFailed
     innerText = Mid$(tokenText, 3, Len(tokenText) - 4)
     If InStr(1, innerText, ".", vbBinaryCompare) > 0 Or _
        InStr(1, innerText, "_", vbBinaryCompare) > 0 Then
@@ -380,6 +404,10 @@ Private Function ResolveStaticTokenText(ByVal tokenText As String) As String
         ResolveStaticTokenText = StaticTokenValue(innerText, found)
         If Not found Then ResolveStaticTokenText = "#KHONG_CO_TRUONG:" & innerText & "#"
     End If
+    Exit Function
+
+ResolveFailed:
+    Err.Raise Err.Number, "ResolveStaticTokenText", "token=" & tokenText & ": " & Err.Description
 End Function
 
 Private Function IsStaticTokenName(ByVal tokenName As String) As Boolean

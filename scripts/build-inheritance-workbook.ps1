@@ -1591,6 +1591,42 @@ try {
     }
     $exportSucceeded = [bool]$excel.Run($macroPrefix + "RunWordExport", $true)
     if (-not $exportSucceeded) { throw "Xuất Word thử thất bại." }
+
+    # Export the same data through one real template from each supported family.
+    # RunWordExport itself verifies that every {{...}} token was consumed; the
+    # separate folders make each result auditable without filename collisions.
+    $originalTemplatePath = [string]$excel.Run($macroPrefix + "GetConfigText", "MauWordDangChon")
+    $originalTemplateFolder = [string]$excel.Run($macroPrefix + "GetConfigText", "ThuMucMauWord")
+    $originalOutputFolder = [string]$excel.Run($macroPrefix + "GetConfigText", "ThuMucXuat")
+    $representativeTemplates = @(
+        @{ Label = "pcds"; Name = "1. PCDS .docx" },
+        @{ Label = "dk18"; Name = "2. DK18, thuế  1.docx" },
+        @{ Label = "uy-quyen"; Name = "3. UQ.docx" }
+    )
+    foreach ($representative in $representativeTemplates) {
+        $representativeTemplatePath = Join-Path $workspace (Join-Path "templates\word" $representative.Name)
+        if (-not (Test-Path -LiteralPath $representativeTemplatePath)) {
+            throw "Thiếu mẫu đại diện để xuất thử: $representativeTemplatePath"
+        }
+        $representativeFolder = Join-Path $wordOutputDir ("representative-{0}-{1}" -f $representative.Label, $timestamp)
+        New-Item -ItemType Directory -Force -Path $representativeFolder | Out-Null
+        [void]$excel.Run($macroPrefix + "SetConfigText", "MauWordDangChon", $representativeTemplatePath)
+        [void]$excel.Run($macroPrefix + "SetConfigText", "ThuMucMauWord", (Split-Path -Parent $representativeTemplatePath))
+        [void]$excel.Run($macroPrefix + "SetConfigText", "ThuMucXuat", $representativeFolder)
+        if (-not [bool]$excel.Run($macroPrefix + "RunWordExport", $true)) {
+            $exportError = [string]$excel.Run($macroPrefix + "LastWordExportError")
+            throw "Xuất mẫu đại diện thất bại: $($representative.Name): $exportError"
+        }
+        $representativeOutputs = @(Get-ChildItem -LiteralPath $representativeFolder -File -Filter *.docx)
+        if ($representativeOutputs.Count -ne 1) {
+            throw "Mẫu đại diện không tạo đúng một file Word: $($representative.Name)"
+        }
+        Write-Output "REP_WORD_EXPORT=$($representative.Name)"
+    }
+    [void]$excel.Run($macroPrefix + "SetConfigText", "MauWordDangChon", $originalTemplatePath)
+    [void]$excel.Run($macroPrefix + "SetConfigText", "ThuMucMauWord", $originalTemplateFolder)
+    [void]$excel.Run($macroPrefix + "SetConfigText", "ThuMucXuat", $originalOutputFolder)
+    [void]$excel.Run($macroPrefix + "RefreshWordSelectionDisplay")
     $testBook.Save()
     $testBook.Close($true)
     Release-ComObject $testBook

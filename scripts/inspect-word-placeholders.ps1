@@ -126,7 +126,7 @@ try {
     $word.DisplayAlerts = 0
     $word.AutomationSecurity = 3
 
-    $results = foreach ($template in $templates) {
+    $results = @(foreach ($template in $templates) {
         $text = Get-WordDocumentText -Word $word -SourcePath $template.FullName
 
         $placeholders = @(Get-Placeholders -Text $text)
@@ -148,7 +148,7 @@ try {
             TotalCount = $placeholders.Count
             AssetCapacity = $assetCapacity
         }
-    }
+    })
 
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add("# Kiểm kê placeholder mẫu Word")

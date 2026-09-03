@@ -213,7 +213,14 @@ Private Function PersonStaticMatches(ByVal baseName As String, ByVal slot As Lon
     rowIndex = SlotPersonRow(slot)
     If rowIndex = 0 Then Exit Function
     If Len(standardHeader) > 0 Then
-        valueText = ValueToExportText(PersonCell(rowIndex, standardHeader).Value2)
+        Select Case standardHeader
+            Case COL_LOAI_CC, COL_NOI_CAP_CC, COL_NHAN_DIA_CHI
+                ' These derived fields live in tblNguoiKyThuat on XuatAn;
+                ' tblNguoi on NhapLieu intentionally contains only A:I.
+                valueText = ValueToExportText(PersonTechCell(rowIndex, standardHeader).Value2)
+            Case Else
+                valueText = ValueToExportText(PersonCell(rowIndex, standardHeader).Value2)
+        End Select
     ElseIf extensionColumn > 0 Then
         valueText = ValueToExportText(ws.Cells(lo.DataBodyRange.Row + rowIndex - 1, extensionColumn).Value2)
     End If
