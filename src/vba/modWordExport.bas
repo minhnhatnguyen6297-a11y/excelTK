@@ -5,6 +5,145 @@ Public Sub XuatVanBan()
     Call RunWordExport(False)
 End Sub
 
+Public Sub ChonNoiLayMau()
+    Dim picker As Object
+    Dim selectedFolder As String
+    Dim previousTemplate As String
+    Dim candidateTemplate As String
+    Dim templateName As String
+
+    On Error GoTo PickerFailed
+    Set picker = Application.FileDialog(4)
+    picker.AllowMultiSelect = False
+    picker.Title = "Chọn nơi lấy mẫu Word"
+    If Len(GetConfigText("ThuMucMauWord")) > 0 Then picker.InitialFileName = GetConfigText("ThuMucMauWord")
+    If picker.Show <> -1 Then Exit Sub
+    selectedFolder = CStr(picker.SelectedItems(1))
+
+    previousTemplate = GetConfigText("MauWordDangChon")
+    If Len(previousTemplate) > 0 Then templateName = Dir$(previousTemplate)
+    If Len(templateName) > 0 Then candidateTemplate = selectedFolder & Application.PathSeparator & templateName
+    SetConfigText "ThuMucMauWord", selectedFolder
+    If Len(candidateTemplate) > 0 And LCase$(Right$(candidateTemplate, 5)) = ".docx" And _
+       Len(Dir$(candidateTemplate)) > 0 Then
+        SetConfigText "MauWordDangChon", candidateTemplate
+        UpdateTemplateCapacity
+    Else
+        SetConfigText "MauWordDangChon", vbNullString
+        SetConfigNumber "SucChuaNguoiMau", 0
+        SetConfigNumber "SucChuaTaiSanMau", 0
+    End If
+    RefreshWordSelectionDisplay
+    Exit Sub
+
+PickerFailed:
+    MsgBox Err.Description, vbExclamation, "Không thể chọn nơi lấy mẫu"
+End Sub
+
+Public Sub ChonVanBan()
+    Dim picker As Object
+    Dim selectedFile As String
+    Dim templateFolder As String
+    Dim fso As Object
+
+    On Error GoTo PickerFailed
+    templateFolder = GetConfigText("ThuMucMauWord")
+    If Len(templateFolder) = 0 Or Dir$(templateFolder, vbDirectory) = vbNullString Then
+        MsgBox "Hãy chọn nơi lấy mẫu trước.", vbExclamation, "Chưa có thư mục mẫu"
+        Exit Sub
+    End If
+
+    Set picker = Application.FileDialog(3)
+    picker.AllowMultiSelect = False
+    picker.Title = "Chọn văn bản Word"
+    picker.InitialFileName = templateFolder & Application.PathSeparator
+    picker.Filters.Clear
+    picker.Filters.Add "Word Documents", "*.docx"
+    If picker.Show <> -1 Then Exit Sub
+    selectedFile = CStr(picker.SelectedItems(1))
+    If LCase$(Right$(selectedFile, 5)) <> ".docx" Then
+        MsgBox "Chỉ nhận file .docx.", vbExclamation, "Mẫu không hợp lệ"
+        Exit Sub
+    End If
+
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If LCase$(fso.GetParentFolderName(selectedFile)) <> LCase$(templateFolder) Then
+        MsgBox "Chỉ chọn file .docx nằm trực tiếp trong thư mục mẫu.", vbExclamation, "Mẫu không hợp lệ"
+        Exit Sub
+    End If
+
+    SetConfigText "MauWordDangChon", selectedFile
+    UpdateTemplateCapacity
+    RefreshWordSelectionDisplay
+    Exit Sub
+
+PickerFailed:
+    MsgBox Err.Description, vbExclamation, "Không thể chọn văn bản"
+End Sub
+
+Public Sub ChonNoiXuat()
+    Dim picker As Object
+    Dim selectedFolder As String
+
+    On Error GoTo PickerFailed
+    Set picker = Application.FileDialog(4)
+    picker.AllowMultiSelect = False
+    picker.Title = "Chọn nơi xuất văn bản"
+    If Len(GetConfigText("ThuMucXuat")) > 0 Then picker.InitialFileName = GetConfigText("ThuMucXuat")
+    If picker.Show <> -1 Then Exit Sub
+    selectedFolder = CStr(picker.SelectedItems(1))
+    SetConfigText "ThuMucXuat", selectedFolder
+    RefreshWordSelectionDisplay
+    Exit Sub
+
+PickerFailed:
+    MsgBox Err.Description, vbExclamation, "Không thể chọn nơi xuất"
+End Sub
+
+Public Sub RefreshWordSelectionDisplay()
+    Dim ws As Worksheet
+    Dim templatePath As String
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
+    templatePath = GetConfigText("MauWordDangChon")
+    ws.Range("B3").Value2 = ShortPathText(GetConfigText("ThuMucMauWord"))
+    If Len(templatePath) > 0 Then
+        ws.Range("C5").Value2 = Dir$(templatePath)
+    Else
+        ws.Range("C5").Value2 = vbNullString
+    End If
+    ws.Range("B7").Value2 = ShortPathText(GetConfigText("ThuMucXuat"))
+End Sub
+
+Private Sub UpdateTemplateCapacity()
+    Dim catalog As Worksheet
+    Dim templatePath As String
+    Dim templateName As String
+    Dim rowNumber As Long
+    Dim found As Boolean
+
+    templatePath = GetConfigText("MauWordDangChon")
+    If Len(templatePath) = 0 Then
+        SetConfigNumber "SucChuaNguoiMau", 0
+        SetConfigNumber "SucChuaTaiSanMau", 0
+        Exit Sub
+    End If
+    templateName = Dir$(templatePath)
+    Set catalog = ThisWorkbook.Worksheets("DanhMuc")
+    For rowNumber = 4 To catalog.Cells(catalog.Rows.Count, 10).End(xlUp).Row
+        If CStr(catalog.Cells(rowNumber, 10).Value2) = templateName Then
+            SetConfigNumber "SucChuaNguoiMau", SafeLong(catalog.Cells(rowNumber, 11).Value2, 0)
+            SetConfigNumber "SucChuaTaiSanMau", SafeLong(catalog.Cells(rowNumber, 12).Value2, 0)
+            found = True
+            Exit For
+        End If
+    Next rowNumber
+    If Not found Then
+        SetConfigNumber "SucChuaNguoiMau", 0
+        SetConfigNumber "SucChuaTaiSanMau", 0
+    End If
+End Sub
+
 Public Function RunWordExport(Optional ByVal silent As Boolean = False) As Boolean
     Dim wordApp As Object
     Dim wordDoc As Object
@@ -17,12 +156,10 @@ Public Function RunWordExport(Optional ByVal silent As Boolean = False) As Boole
 
     Application.ScreenUpdating = False
     Application.EnableEvents = False
+    RefreshWordSelectionDisplay
     RefreshAllPeople
 
-    If Not ValidateWorkbook(Not silent) Then
-        errorText = "Dữ liệu còn lỗi chặn xuất."
-        GoTo ExportFailed
-    End If
+    Call ValidateWorkbook(Not silent)
 
     BuildExportData
     templatePath = GetConfigText("DuongDanMauWord")

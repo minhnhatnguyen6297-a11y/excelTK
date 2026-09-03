@@ -42,12 +42,14 @@ Public Function NormalizeAllDates(Optional ByVal showMessage As Boolean = False)
     End If
 
     For rowIndex = 1 To lo.DataBodyRange.Rows.Count
-        NormalizeOneDateCell PersonCell(rowIndex, COL_BIRTH), COL_BIRTH_RAW, COL_BIRTH_CALC, _
-                             True, invalidCount, firstInvalid
-        NormalizeOneDateCell PersonCell(rowIndex, COL_DEATH), COL_DEATH_RAW, COL_DEATH_CALC, _
-                             True, invalidCount, firstInvalid
-        NormalizeOneDateCell PersonCell(rowIndex, COL_ISSUED), COL_ISSUED_RAW, COL_ISSUED_CALC, _
-                             True, invalidCount, firstInvalid
+        If SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0) > 0 Then
+            NormalizeOneDateCell PersonCell(rowIndex, COL_BIRTH), COL_BIRTH_RAW, COL_BIRTH_CALC, _
+                                 True, invalidCount, firstInvalid
+            NormalizeOneDateCell PersonCell(rowIndex, COL_DEATH), COL_DEATH_RAW, COL_DEATH_CALC, _
+                                 True, invalidCount, firstInvalid
+            NormalizeOneDateCell PersonCell(rowIndex, COL_ISSUED), COL_ISSUED_RAW, COL_ISSUED_CALC, _
+                                 True, invalidCount, firstInvalid
+        End If
     Next rowIndex
 
     NormalizeAllDates = (invalidCount = 0)
@@ -72,8 +74,10 @@ Private Sub NormalizeDateIntersection(ByVal changedRange As Range, ByVal visible
     If affected Is Nothing Then Exit Sub
 
     For Each oneCell In affected.Cells
-        NormalizeOneDateCell oneCell, rawHeader, calcHeader, preserveExistingRaw, _
-                             invalidCount, firstInvalid
+        If SafeLong(PersonCell(oneCell.Row - lo.DataBodyRange.Row + 1, COL_STT).Value2, 0) > 0 Then
+            NormalizeOneDateCell oneCell, rawHeader, calcHeader, preserveExistingRaw, _
+                                 invalidCount, firstInvalid
+        End If
     Next oneCell
 End Sub
 
@@ -92,16 +96,23 @@ Private Sub NormalizeOneDateCell(ByVal inputCell As Range, ByVal rawHeader As St
 
     Set lo = PeopleTable()
     rowIndex = inputCell.Row - lo.DataBodyRange.Row + 1
-    Set rawCell = PersonCell(rowIndex, rawHeader)
-    Set calcCell = PersonCell(rowIndex, calcHeader)
+    Set rawCell = PersonTechCell(rowIndex, rawHeader)
+    Set calcCell = PersonTechCell(rowIndex, calcHeader)
 
-    keepOldRaw = preserveExistingRaw And Len(Trim$(CStr(rawCell.Value2))) > 0 And _
-                 IsDate(calcCell.Value) And _
-                 (Trim$(CStr(inputCell.Value2)) = Trim$(CStr(rawCell.Value2)) Or _
-                  Trim$(CStr(inputCell.Value2)) = Format$(CDate(calcCell.Value), "dd/mm/yyyy"))
+    keepOldRaw = False
+    If preserveExistingRaw Then
+        If Not IsError(rawCell.Value2) Then
+            If Len(Trim$(ValueToExportText(rawCell.Value2))) > 0 And IsDate(calcCell.Value) Then
+                If Not IsError(inputCell.Value2) Then
+                    keepOldRaw = (Trim$(ValueToExportText(inputCell.Value2)) = Trim$(ValueToExportText(rawCell.Value2)) Or _
+                                 Trim$(ValueToExportText(inputCell.Value2)) = Format$(CDate(calcCell.Value), "dd/mm/yyyy"))
+                End If
+            End If
+        End If
+    End If
 
     inputCell.NumberFormat = "@"
-    If Len(Trim$(CStr(inputCell.Value2))) = 0 Then
+    If Len(Trim$(ValueToExportText(inputCell.Value2))) = 0 Then
         inputCell.ClearContents
         rawCell.ClearContents
         calcCell.ClearContents
@@ -111,7 +122,7 @@ Private Sub NormalizeOneDateCell(ByVal inputCell As Range, ByVal rawHeader As St
     If TryParseLegalDate(inputCell.Value2, normalizedText, originalText, calculatedDate, errorReason) Then
         rawCell.NumberFormat = "@"
         If keepOldRaw Then
-            originalText = CStr(rawCell.Value2)
+            originalText = ValueToExportText(rawCell.Value2)
         Else
             rawCell.Value2 = originalText
         End If
@@ -135,7 +146,7 @@ Public Function NormalizeStandaloneDateCell(ByVal inputCell As Range, ByVal rawC
     Dim errorReason As String
 
     inputCell.NumberFormat = "@"
-    If Len(Trim$(CStr(inputCell.Value2))) = 0 Then
+    If Len(Trim$(ValueToExportText(inputCell.Value2))) = 0 Then
         inputCell.ClearContents
         rawCell.ClearContents
         calcCell.ClearContents

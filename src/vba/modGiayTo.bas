@@ -7,11 +7,11 @@ Public Sub UpdateGiayToForRow(ByVal rowIndex As Long)
     Dim noiCap As String
     Dim nhanDiaChi As String
 
-    issuedDate = PersonCell(rowIndex, COL_ISSUED_CALC).Value
+    issuedDate = PersonTechCell(rowIndex, COL_ISSUED_CALC).Value
     If Not IsDate(issuedDate) Then
-        PersonCell(rowIndex, COL_LOAI_CC).ClearContents
-        PersonCell(rowIndex, COL_NOI_CAP_CC).ClearContents
-        PersonCell(rowIndex, COL_NHAN_DIA_CHI).ClearContents
+        PersonTechCell(rowIndex, COL_LOAI_CC).ClearContents
+        PersonTechCell(rowIndex, COL_NOI_CAP_CC).ClearContents
+        PersonTechCell(rowIndex, COL_NHAN_DIA_CHI).ClearContents
         Exit Sub
     End If
 
@@ -20,11 +20,11 @@ Public Sub UpdateGiayToForRow(ByVal rowIndex As Long)
     Else
         loaiCC = CStr(ThisWorkbook.Names("DanhMuc_LoaiCCTuMoc").RefersToRange.Value2)
     End If
-    PersonCell(rowIndex, COL_LOAI_CC).Value2 = loaiCC
+    PersonTechCell(rowIndex, COL_LOAI_CC).Value2 = loaiCC
     noiCap = LookupCatalogValue("DanhMuc_LoaiGiayTo", "DanhMuc_NoiCapCC", loaiCC)
     nhanDiaChi = LookupCatalogValue("DanhMuc_LoaiGiayTo", "DanhMuc_NhanDiaChi", loaiCC)
-    PersonCell(rowIndex, COL_NOI_CAP_CC).Value2 = noiCap
-    PersonCell(rowIndex, COL_NHAN_DIA_CHI).Value2 = nhanDiaChi
+    PersonTechCell(rowIndex, COL_NOI_CAP_CC).Value2 = noiCap
+    PersonTechCell(rowIndex, COL_NHAN_DIA_CHI).Value2 = nhanDiaChi
 End Sub
 
 Private Function LookupCatalogValue(ByVal keyName As String, ByVal resultName As String, ByVal keyValue As String) As String

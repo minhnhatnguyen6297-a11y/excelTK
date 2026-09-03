@@ -73,13 +73,14 @@ Thông tin dùng để tính phải được bảo vệ khỏi sửa nhầm. Ng�
 - Bảng Người dùng vùng `A:I`; vùng `J:Z` là 17 cột dự phòng cho trường Người mở rộng. Các cột dự phòng chưa dùng được ẩn; khi có tiêu đề thì hiện cột đó.
 - Cách bố trí này giữ được dạng thẻ dọc nhưng không tạo một vùng dài 60 hàng. Người dùng chỉ cuộn ngang khi cần xem hoặc nhập tài sản, không phải cuộn xuống dưới bảng Người.
 - Số thẻ cố định là **3**. Thẻ không dùng thì để trống.
+- Tên thẻ (`Tài sản 1`, `Tài sản 2`, `Tài sản 3`) và toàn bộ vùng nhãn/tên trường của thẻ do mẫu cung cấp được khóa. Chỉ các ô giá trị bên cạnh được mở để nhập hoặc chọn.
 - Người dùng nhập trực tiếp vào thẻ. VBA dò nhãn trường, đọc ô giá trị bên cạnh và dựng bảng ẩn `tblTaiSan` trên `XuatAn` để phục vụ tính toán/xuất; người dùng không nhập vào bảng ẩn đó.
 - Các cột kỹ thuật của Người và Tài sản không còn đặt ở `J:W` trên `NhapLieu`; chúng phải chuyển sang bảng hệ thống trên sheet rất ẩn `XuatAn` để không chiếm vùng mở rộng.
 
 ### 2.3. Trường nhập và trường mở rộng
 
 - Mọi ô nhập nhìn thấy của Người, Tài sản và Hồ sơ mặc định có định dạng Text (`@`). Chuỗi `05`, `00123` hoặc `1/2` phải được giữ nguyên, không để Excel tự đổi thành số hay ngày.
-- Trường chuẩn do workbook cung cấp sẵn. Trường mở rộng do người dùng khai báo trực tiếp bằng cách gõ tiêu đề/nhãn vào ô dành sẵn, không dùng form và không cần sửa VBA.
+- Trường chuẩn do workbook cung cấp sẵn. Trường mở rộng của Người và Hồ sơ do người dùng khai báo trực tiếp bằng cách gõ tiêu đề/nhãn vào ô dành sẵn, không dùng form và không cần sửa VBA. Tên trường của thẻ Tài sản chỉ dùng nhãn do mẫu phát hành và bị khóa theo §10.6.
 - Không tạo sheet `Trường mở rộng`, không tạo `tblTruongTuDo` và không bắt người dùng đăng ký key-value ở nơi khác; tiêu đề/nhãn ngay trên `NhapLieu` là nguồn khai báo duy nhất.
 - Trường mở rộng có thể là dữ liệu nhập tay hoặc công thức Excel. Công thức là trách nhiệm của người dùng; VBA chỉ đọc kết quả đang có trong ô, không tự suy luận hay viết lại công thức.
 - Nút `Đồng bộ trường` chỉ sao chép cấu trúc cần thiết: áp dụng công thức xuống các dòng Người cùng nhóm, hoặc sao chép nhãn/công thức từ thẻ Tài sản 1 sang thẻ 2 và 3. Nút này không sao chép giá trị nhập tay.
@@ -87,7 +88,7 @@ Thông tin dùng để tính phải được bảo vệ khỏi sửa nhầm. Ng�
 
 ### 2.4. Thông tin phụ
 
-- Thông tin Hồ sơ nằm trong khối `B40:C51` trên `NhapLieu`: cột `B` là nhãn, cột `C` là giá trị. Khối này chỉ dài 12 hàng và không làm ba thẻ Tài sản kéo dài xuống dưới.
+- Thông tin Hồ sơ bắt đầu từ `B40:C40` trên `NhapLieu`: cột `B` là nhãn, cột `C` là giá trị. Mặc định VBA tiếp tục quét các cặp nhãn/giá trị ở những hàng bên dưới, không khóa cuối khối tại `C52`. Nếu việc kéo dài gây xung đột bố cục, giới hạn ở `B40:C70` (30 hàng nhập từ hàng 41 đến hàng 70).
 - MVP có sẵn các trường: niêm yết, số công chứng, người ủy quyền, người ủy quyền 2.
 - Khối có các hàng trống dự phòng để người dùng tự thêm nhãn, dữ liệu hoặc công thức theo cùng hợp đồng tại §11.
 
@@ -389,7 +390,8 @@ Quy tắc MVP:
 | `B9:G38` | Nhập — họ tên, ngày sinh, ngày chết, số giấy tờ, ngày cấp, địa chỉ |
 | `H9:I38` | Chỉ bấm — Hàng TK, Nhận đất |
 | `J8:Z38` | Nhập tiêu đề, dữ liệu hoặc công thức của trường Người mở rộng |
-| Ô nhãn/giá trị dành sẵn của thẻ tài sản | Nhập hoặc chọn, xem §10.3 và §10.6 |
+| Vùng tên thẻ và tên trường của thẻ tài sản | Nhãn cố định, khóa |
+| Ô giá trị của thẻ tài sản | Nhập hoặc chọn, xem §10.3 và §10.6 |
 | Ô giá trị của khối hồ sơ | Nhập hoặc chọn, xem §11 |
 | Cột `A` và các ô giao diện không nêu trên | Hệ thống hoặc nhãn cố định, khóa |
 
@@ -489,10 +491,9 @@ VBA đọc giá trị bằng `Value2`. Ô nhập là Text nên giữ được s�
 ### 10.6. Thêm trường, đồng bộ và xóa thẻ
 
 - Ba thẻ luôn tồn tại; v0.3.0 không có lệnh thêm thẻ thứ tư.
-- Sau 18 trường chuẩn, mỗi thẻ dành các hàng còn lại đến hàng 38 làm vùng trường mở rộng. Không chèn thêm hàng giữa các trường chuẩn.
-- Người dùng gõ nhãn mới ở hàng trống tiếp theo của **thẻ 1**, rồi nhập giá trị mẫu hoặc công thức nếu cần.
-- Khi bấm `Đồng bộ trường`, VBA sao chép nhãn mới sang đúng hàng của thẻ 2 và 3. Nếu ô giá trị của thẻ 1 là công thức, sao chép công thức theo tham chiếu tương đối sang hai thẻ; nếu là dữ liệu nhập tay, giữ ô giá trị thẻ 2 và 3 trống.
-- Nếu nhãn ba thẻ khác nhau, thẻ 1 là nguồn chuẩn và thao tác đồng bộ phải hỏi xác nhận trước khi ghi đè **nhãn hoặc công thức**, nhưng không được ghi đè dữ liệu nhập tay.
+- Sau 18 trường chuẩn, các hàng còn lại đến hàng 38 là vùng dự trữ cho lần chốt sau; v0.3.0 không cho người dùng thêm nhãn hoặc trường tài sản mới tại đó. Tên thẻ và tên trường chuẩn vẫn bị khóa.
+- Người dùng chỉ nhập/chọn giá trị ở ô bên phải của 18 trường chuẩn. Nếu ô giá trị của thẻ 1 là công thức, `Đồng bộ trường` có thể sao chép công thức theo tham chiếu tương đối sang thẻ 2 và 3; dữ liệu nhập tay ở thẻ 2 và 3 không bị ghi đè.
+- Việc thêm/sửa nhãn hoặc đồng bộ nhãn giữa ba thẻ không thuộc phạm vi v0.3.0; task liên quan phải được rà soát lại theo quyết định này.
 - Xóa một tài sản là xóa trắng các ô giá trị của thẻ đó. VBA xóa dữ liệu kỹ thuật tương ứng khi thẻ trở về trạng thái không có dữ liệu.
 
 ## 11. Bước 3 — Thông tin phụ của hồ sơ
@@ -511,7 +512,7 @@ Quy tắc:
 - `NiemYet` là xã hoặc địa bàn niêm yết văn bản.
 - `SoCongChung` là số công chứng của văn bản. Để trống thì xuất chuỗi rỗng, không xuất `0`.
 - `NguoiUyQuyen` và `NguoiUyQuyen2` chọn từ danh mục người ủy quyền (§14.3). Hồ sơ chỉ có một người ủy quyền thì để trống trường thứ hai.
-- Khối có ít nhất 8 hàng trống dự phòng. Người dùng gõ nhãn mới vào hàng trống tiếp theo rồi nhập dữ liệu hoặc công thức ở ô giá trị.
+- Khối mặc định tiếp tục mở rộng từ hàng 40 xuống các hàng tiếp theo để người dùng thêm cặp nhãn/giá trị. Nếu cần giới hạn do xung đột bố cục, dùng tối đa `B40:C70`, tương ứng 30 hàng nhập từ hàng 41 đến hàng 70.
 - Trường Hồ sơ là giá trị đơn nên placeholder không có số cuối, trừ khi chính nhãn trường đã có số phân biệt như `NguoiUyQuyen2`.
 - VBA quét nhãn không rỗng và đọc ô giá trị bên cạnh. Thêm trường Hồ sơ không cần sửa VBA.
 
@@ -615,6 +616,7 @@ Placeholder danh sách, khối lặp hoặc bảng là loại có logic bên tro
 - Không cố thay placeholder động bằng chuỗi rỗng. Khi gặp token động chưa hỗ trợ, ghi dấu rõ `#CHUA_HO_TRO_DONG:<ten>#` trong Word.
 - Việc định nghĩa nguồn dữ liệu, mẫu câu một phần tử, dấu nối và cách xử lý danh sách rỗng phải được chốt trong một issue/SOT riêng trước khi triển khai.
 - Placeholder động không bị giới hạn bởi số slot tĩnh tại §12.3 sau khi được triển khai.
+- Ô `Mục đích sử dụng` dự kiến tổng hợp các ô loại đất riêng lẻ và gắn placeholder động; quyết định về cú pháp, nguồn dữ liệu và cách xuất được để ở MIN-30, chưa triển khai trong v0.3.0.
 
 ### 13.4. Quy tắc thay thế
 
@@ -627,7 +629,7 @@ Placeholder danh sách, khối lặp hoặc bảng là loại có logic bên tro
 - Chuỗi dài hơn 254 ký tự phải dùng `TypeText` thay vì `Replacement.Text`, do giới hạn của Find/Replace.
 - Parser chỉ nhận token tĩnh bắt đầu bằng chữ thường, theo sau chỉ là chữ thường hoặc số, tất cả nằm trong `{{...}}`; token sai cú pháp được đổi thành `#PLACEHOLDER_SAI:<noi_dung>#`, không đoán tên.
 - Không để một placeholder bị tách thành nhiều run trong Word, vì Find/Replace sẽ không nhận diện được.
-- Thêm trường mới chỉ cần: gõ tiêu đề/nhãn, nhập dữ liệu hoặc công thức, bấm `Đồng bộ trường` nếu cần nhân công thức/cấu trúc, rồi đặt placeholder đã chuẩn hóa vào Word. Không sửa VBA.
+- Thêm trường Người hoặc Hồ sơ mới chỉ cần: gõ tiêu đề/nhãn, nhập dữ liệu hoặc công thức, bấm `Đồng bộ trường` nếu cần nhân công thức/cấu trúc, rồi đặt placeholder đã chuẩn hóa vào Word. Thẻ Tài sản chỉ dùng nhãn do mẫu phát hành; không tự thêm hoặc sửa tên trường. Không sửa VBA cho trường Người/Hồ sơ.
 - Trước khi phát hành v0.3.0, mọi mẫu trong `templates/word/`, parser VBA, kiểm tra placeholder và script kiểm kê phải chuyển hoàn toàn sang `{{...}}`; không để hai cú pháp chạy song song.
 
 ### 13.5. An toàn phiên Office
@@ -649,7 +651,7 @@ Trước khi phát hành v0.3.0 phải hoàn thành đồng thời:
 - `modWordExport.bas` là nơi duy nhất quét và thay token `{{...}}` trong các Word Range.
 - `modXuatWord.bas` chỉ điều phối chọn mẫu, gọi lập dữ liệu, xuất file và báo tổng số dấu lỗi; không giữ một parser thứ hai.
 - `scripts/inspect-word-placeholders.ps1` kiểm kê token `{{...}}`, báo token sai quy tắc, token trùng và mọi placeholder ngoặc vuông còn sót.
-- Toàn bộ file `.docx` trong `templates/word/` được kiểm kê và chuyển token tĩnh sang cú pháp mới. Mẫu `.doc` cũ phải được chuyển sang `.docx` hoặc ghi rõ chưa được hỗ trợ; không âm thầm bỏ qua.
+- Toàn bộ file `.docx` trong `templates/word/` được kiểm kê và chuyển token tĩnh sang cú pháp mới. Năm mẫu `.doc` cũ được người dùng yêu cầu bỏ qua trong v0.3.0; không chuyển đổi, hỗ trợ hoặc chỉnh sửa chúng trong release này. Việc xử lý sau này cần issue/SOT riêng.
 - Cổng phát hành phải thất bại nếu code, metadata tra cứu hoặc mẫu Word còn placeholder ngoặc vuông. Không giữ chế độ parser kép bằng cờ cấu hình.
 
 ## 14. Danh mục tra cứu
@@ -700,6 +702,10 @@ Ba giá trị này do VBA ghi vào bảng kỹ thuật Người trên `XuatAn` k
 - Tên `ListObject` là hợp đồng kỹ thuật; VBA tìm bảng theo tên, không theo địa chỉ cột/hàng.
 - Việc cập nhật danh mục phải thực hiện trên file mẫu nguồn rồi phát hành phiên bản mới. Không sửa riêng từng file hồ sơ trừ khi cần xử lý một trường hợp khẩn cấp và người dùng hiểu file đó sẽ khác mẫu chuẩn.
 
+### 14.5. Trạng thái triển khai ListObject
+
+Theo quyết định của người dùng ngày 2026-09-02, việc triển khai các `ListObject` danh mục của MIN-11 và `ListObject` kỹ thuật tài sản của MIN-10 tạm thời dừng. Không tự tạo, đổi tên hoặc hoàn thiện các bảng này cho đến khi người dùng mở lại hai task. Yêu cầu kiến trúc tại §14 vẫn được giữ nguyên; đây là cổng dừng triển khai, không phải hủy yêu cầu.
+
 ---
 
 ## 15. Ngoài phạm vi phiên bản này
@@ -748,8 +754,8 @@ Chỉ xem xét lại các hướng trên khi có yêu cầu pháp lý hoặc xu�
 - Tất cả ô nhập tay của Người, Tài sản và Hồ sơ có định dạng Text. Nhập `05`, `00123`, `1/2` rồi lưu/mở lại vẫn giữ nguyên từng ký tự và xuất Word giống hệt.
 - Ngày `2015`, `05/2015`, `12/05/2015` hiển thị và xuất đúng nguyên văn; VBA vẫn tạo được ngày tính tương ứng khi chuỗi hợp lệ.
 - Cột trường Người mở rộng nhận tiêu đề mới; công thức mẫu được `Đồng bộ trường` điền xuống các dòng, còn dữ liệu nhập tay không bị nhân bản.
-- Thêm nhãn ở thẻ Tài sản 1 rồi đồng bộ: thẻ 2 và 3 có cùng nhãn/công thức, không ghi đè giá trị nhập tay.
-- VBA tìm trường theo tên tiêu đề/nhãn, không theo offset cột. Chèn thêm trường trong vùng dự phòng không làm sai Hàng TK, Nhận đất hoặc dữ liệu kỹ thuật.
+- Tên thẻ và tên trường tài sản bị khóa; chỉ ô giá trị được nhập/chọn, dữ liệu nhập tay không bị thao tác đồng bộ ghi đè.
+- VBA tìm trường theo tên tiêu đề/nhãn, không theo offset cột. Chèn thêm trường Người hoặc Hồ sơ trong vùng dự phòng không làm sai Hàng TK, Nhận đất hoặc dữ liệu kỹ thuật; vùng dự trữ của thẻ Tài sản không nhận trường mới trong v0.3.0.
 - Thẻ có dữ liệu sinh `TaiSanID` dạng `TS001`; xóa trắng thẻ thì ID được xóa theo.
 - `LoaiSo`, `HinhThucSuDung`, `LoaiDat`, `CoQuanCapSo`, `NguoiUyQuyen` chọn được từ danh mục.
 - Chỉ thẻ 1 và thẻ 3 có dữ liệu thì thẻ 3 vẫn dùng token có số cuối `3`, không bị dồn thành `2`.

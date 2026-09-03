@@ -6,24 +6,36 @@ Public Const SHEET_CONFIG As String = "CauHinh"
 Public Const SHEET_CHECK As String = "KiemTra"
 Public Const SHEET_EXPORT As String = "XuatAn"
 Public Const TABLE_PEOPLE As String = "tblNguoi"
+Public Const TABLE_PEOPLE_TECH As String = "tblNguoiKyThuat"
 Public Const TABLE_ASSET_EXPORT As String = "tblTaiSan"
 
-Public Const ASSET_SECTION_ROW As Long = 40
-Public Const ASSET_FIRST_CARD_ROW As Long = 41
-Public Const ASSET_CARD_HEIGHT As Long = 20
+Public Const ASSET_FIRST_CARD_ROW As Long = 8
+Public Const ASSET_FIRST_CARD_COLUMN As Long = 27
+Public Const ASSET_CARD_WIDTH As Long = 2
 Public Const ASSET_CARD_COUNT As Long = 3
 Public Const ASSET_FIELD_COUNT As Long = 18
-Public Const ASSET_LABEL_COLUMN As Long = 2
-Public Const ASSET_VALUE_COLUMN As Long = 3
-Public Const ASSET_HIDDEN_ID_COLUMN As Long = 10
-Public Const ASSET_HIDDEN_ISSUED_RAW_COLUMN As Long = 11
-Public Const ASSET_HIDDEN_ISSUED_CALC_COLUMN As Long = 12
-Public Const ASSET_HIDDEN_HAS_DATA_COLUMN As Long = 13
+Public Const ASSET_TECH_FIRST_ROW As Long = 41
+Public Const ASSET_TECH_ROW_HEIGHT As Long = 20
+' XuatAn!BM:BP; kept off NhapLieu while MIN-10 tblTaiSan deployment is paused.
+Public Const ASSET_HIDDEN_ID_COLUMN As Long = 65
+Public Const ASSET_HIDDEN_ISSUED_RAW_COLUMN As Long = 66
+Public Const ASSET_HIDDEN_ISSUED_CALC_COLUMN As Long = 67
+Public Const ASSET_HIDDEN_HAS_DATA_COLUMN As Long = 68
 Public Const ASSET_FIELD_LOAI_SO_OFFSET As Long = 1
 Public Const ASSET_FIELD_SERIAL_OFFSET As Long = 2
 Public Const ASSET_FIELD_SO_THUA_OFFSET As Long = 4
 Public Const ASSET_FIELD_DIA_CHI_DAT_OFFSET As Long = 6
 Public Const ASSET_FIELD_NGAY_CAP_SO_OFFSET As Long = 16
+
+Public Const PERSON_EXTENSION_FIRST_COLUMN As Long = 10
+Public Const PERSON_EXTENSION_LAST_COLUMN As Long = 26
+Public Const PERSON_EXTENSION_HEADER_ROW As Long = 8
+Public Const PERSON_EXTENSION_FIRST_ROW As Long = 9
+Public Const PERSON_EXTENSION_LAST_ROW As Long = 38
+
+Public Const PROFILE_HEADER_ROW As Long = 40
+Public Const PROFILE_FIRST_DATA_ROW As Long = 41
+Public Const PROFILE_LAYOUT_CAP_ROW As Long = 70
 
 Public Const COL_STT As String = "STTNhap"
 Public Const COL_NAME As String = "HoTen"
@@ -55,6 +67,10 @@ Public Function PeopleTable() As ListObject
     Set PeopleTable = ThisWorkbook.Worksheets(SHEET_INPUT).ListObjects(TABLE_PEOPLE)
 End Function
 
+Public Function PeopleTechTable() As ListObject
+    Set PeopleTechTable = ThisWorkbook.Worksheets(SHEET_EXPORT).ListObjects(TABLE_PEOPLE_TECH)
+End Function
+
 Public Function ColumnIndex(ByVal headerName As String) As Long
     ColumnIndex = PeopleTable.ListColumns(headerName).Index
 End Function
@@ -63,16 +79,77 @@ Public Function PersonCell(ByVal rowIndex As Long, ByVal headerName As String) A
     Set PersonCell = PeopleTable.DataBodyRange.Cells(rowIndex, ColumnIndex(headerName))
 End Function
 
+Public Function PersonTechRowIndex(ByVal peopleRowIndex As Long) As Long
+    Dim techTable As ListObject
+    Dim inputStt As Long
+    Dim techRowIndex As Long
+
+    Set techTable = PeopleTechTable()
+    inputStt = SafeLong(PersonCell(peopleRowIndex, COL_STT).Value2, 0)
+
+    If inputStt > 0 Then
+        For techRowIndex = 1 To techTable.DataBodyRange.Rows.Count
+            If SafeLong(techTable.ListColumns(COL_STT).DataBodyRange.Cells(techRowIndex, 1).Value2, 0) = inputStt Then
+                PersonTechRowIndex = techRowIndex
+                Exit Function
+            End If
+        Next techRowIndex
+
+        For techRowIndex = 1 To techTable.DataBodyRange.Rows.Count
+            If Len(Trim$(ValueToExportText(techTable.ListColumns(COL_ID).DataBodyRange.Cells(techRowIndex, 1).Value2))) = 0 Then
+                techTable.ListColumns(COL_STT).DataBodyRange.Cells(techRowIndex, 1).Value2 = inputStt
+                PersonTechRowIndex = techRowIndex
+                Exit Function
+            End If
+        Next techRowIndex
+    End If
+
+    Err.Raise vbObjectError + 513, "PersonTechRowIndex", "Không tìm thấy dòng kỹ thuật Người."
+End Function
+
+Public Function PersonTechCell(ByVal rowIndex As Long, ByVal headerName As String) As Range
+    Set PersonTechCell = PeopleTechTable.DataBodyRange.Cells( _
+        PersonTechRowIndex(rowIndex), PeopleTechTable.ListColumns(headerName).Index)
+End Function
+
+Public Sub SyncPersonTechStt(ByVal rowIndex As Long)
+    If SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0) > 0 Then
+        PersonTechCell(rowIndex, COL_STT).Value2 = PersonCell(rowIndex, COL_STT).Value2
+    End If
+End Sub
+
 Public Function PersonName(ByVal rowIndex As Long) As String
-    PersonName = Trim$(CStr(PersonCell(rowIndex, COL_NAME).Value2))
+    PersonName = Trim$(ValueToExportText(PersonCell(rowIndex, COL_NAME).Value2))
 End Function
 
 Public Function PersonHasData(ByVal rowIndex As Long) As Boolean
     PersonHasData = (Len(PersonName(rowIndex)) > 0)
 End Function
 
+Public Function PersonExtensionRange() As Range
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
+    Set PersonExtensionRange = ws.Range(ws.Cells(PERSON_EXTENSION_HEADER_ROW, PERSON_EXTENSION_FIRST_COLUMN), _
+                                        ws.Cells(PERSON_EXTENSION_LAST_ROW, PERSON_EXTENSION_LAST_COLUMN))
+End Function
+
+Public Function ProfileLastDataRow() As Long
+    Dim ws As Worksheet
+    Dim lastLabelRow As Long
+    Dim lastValueRow As Long
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
+    lastLabelRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
+    lastValueRow = ws.Cells(ws.Rows.Count, 3).End(xlUp).Row
+    ProfileLastDataRow = lastLabelRow
+    If lastValueRow > ProfileLastDataRow Then ProfileLastDataRow = lastValueRow
+    If ProfileLastDataRow < PROFILE_FIRST_DATA_ROW Then ProfileLastDataRow = PROFILE_FIRST_DATA_ROW
+End Function
+
 Public Function SafeLong(ByVal value As Variant, Optional ByVal fallback As Long = 0) As Long
-    If IsError(value) Or IsEmpty(value) Or Len(Trim$(CStr(value))) = 0 Then
+    If IsError(value) Or IsEmpty(value) Then
+        SafeLong = fallback
+    ElseIf Len(Trim$(ValueToExportText(value))) = 0 Then
         SafeLong = fallback
     ElseIf IsNumeric(value) Then
         SafeLong = CLng(value)
@@ -82,12 +159,16 @@ Public Function SafeLong(ByVal value As Variant, Optional ByVal fallback As Long
 End Function
 
 Public Function SafeBool(ByVal value As Variant) As Boolean
-    If VarType(value) = vbBoolean Then
+    Dim textValue As String
+    If IsError(value) Or IsEmpty(value) Then
+        SafeBool = False
+    ElseIf VarType(value) = vbBoolean Then
         SafeBool = CBool(value)
     ElseIf IsNumeric(value) Then
         SafeBool = (CDbl(value) <> 0)
     Else
-        SafeBool = (LCase$(Trim$(CStr(value))) = "true" Or Trim$(CStr(value)) = "có")
+        textValue = LCase$(Trim$(ValueToExportText(value)))
+        SafeBool = (textValue = "true" Or textValue = UnicodeText("0063 00F3"))
     End If
 End Function
 
@@ -112,10 +193,65 @@ End Function
 
 Public Function GetConfigText(ByVal rangeName As String) As String
     On Error GoTo MissingName
-    GetConfigText = Trim$(CStr(ThisWorkbook.Names(rangeName).RefersToRange.Value2))
+    GetConfigText = Trim$(ValueToExportText(ThisWorkbook.Names(rangeName).RefersToRange.Value2))
     Exit Function
 MissingName:
     GetConfigText = vbNullString
+End Function
+
+Public Function ValueToExportText(ByVal value As Variant) As String
+    Dim errorText As String
+
+    If IsError(value) Then
+        On Error Resume Next
+        errorText = CStr(value)
+        On Error GoTo 0
+        Select Case errorText
+            Case "Error 2000": ValueToExportText = "#NULL!"
+            Case "Error 2007": ValueToExportText = "#DIV/0!"
+            Case "Error 2015": ValueToExportText = "#VALUE!"
+            Case "Error 2023": ValueToExportText = "#REF!"
+            Case "Error 2029": ValueToExportText = "#NAME?"
+            Case "Error 2036": ValueToExportText = "#NUM!"
+            Case "Error 2042": ValueToExportText = "#N/A"
+            Case Else: ValueToExportText = errorText
+        End Select
+    ElseIf IsEmpty(value) Then
+        ValueToExportText = vbNullString
+    Else
+        ValueToExportText = CStr(value)
+    End If
+End Function
+
+Public Sub SetConfigText(ByVal rangeName As String, ByVal valueText As String)
+    On Error GoTo MissingName
+    With ThisWorkbook.Names(rangeName).RefersToRange
+        .NumberFormat = "@"
+        .Value2 = valueText
+    End With
+    Exit Sub
+MissingName:
+    Err.Raise vbObjectError + 514, "SetConfigText", "Không tìm thấy cấu hình " & rangeName & "."
+End Sub
+
+Public Sub SetConfigNumber(ByVal rangeName As String, ByVal valueNumber As Long)
+    On Error GoTo MissingName
+    ThisWorkbook.Names(rangeName).RefersToRange.Value2 = valueNumber
+    Exit Sub
+MissingName:
+    Err.Raise vbObjectError + 515, "SetConfigNumber", "Không tìm thấy cấu hình " & rangeName & "."
+End Sub
+
+Public Function ShortPathText(ByVal fullPath As String, Optional ByVal maxLength As Long = 48) As String
+    Dim prefix As String
+    Dim tail As String
+    If Len(fullPath) <= maxLength Or maxLength < 8 Then
+        ShortPathText = fullPath
+        Exit Function
+    End If
+    prefix = Left$(fullPath, 3)
+    tail = Mid$(fullPath, Len(fullPath) - maxLength + 7)
+    ShortPathText = prefix & "..." & tail
 End Function
 
 Public Function NextPersonId() As String
@@ -132,17 +268,22 @@ End Function
 
 Public Function AssetCardStartRow(ByVal assetIndex As Long) As Long
     If assetIndex < 1 Or assetIndex > ASSET_CARD_COUNT Then Exit Function
-    AssetCardStartRow = ASSET_FIRST_CARD_ROW + ((assetIndex - 1) * ASSET_CARD_HEIGHT)
+    AssetCardStartRow = ASSET_FIRST_CARD_ROW
+End Function
+
+Public Function AssetCardStartColumn(ByVal assetIndex As Long) As Long
+    If assetIndex < 1 Or assetIndex > ASSET_CARD_COUNT Then Exit Function
+    AssetCardStartColumn = ASSET_FIRST_CARD_COLUMN + ((assetIndex - 1) * ASSET_CARD_WIDTH)
 End Function
 
 Public Function AssetValueCell(ByVal assetIndex As Long, ByVal fieldOffset As Long) As Range
     Set AssetValueCell = ThisWorkbook.Worksheets(SHEET_INPUT).Cells.Item( _
-        AssetCardStartRow(assetIndex) + fieldOffset, ASSET_VALUE_COLUMN)
+        AssetCardStartRow(assetIndex) + fieldOffset, AssetCardStartColumn(assetIndex) + 1)
 End Function
 
 Public Function AssetHiddenCell(ByVal assetIndex As Long, ByVal columnNumber As Long) As Range
-    Set AssetHiddenCell = ThisWorkbook.Worksheets(SHEET_INPUT).Cells.Item( _
-        AssetCardStartRow(assetIndex), columnNumber)
+    Set AssetHiddenCell = ThisWorkbook.Worksheets(SHEET_EXPORT).Cells.Item( _
+        ASSET_TECH_FIRST_ROW + ((assetIndex - 1) * ASSET_TECH_ROW_HEIGHT), columnNumber)
 End Function
 
 Public Function NextAssetId() As String
@@ -159,28 +300,66 @@ End Function
 
 Public Function NormalizeKey(ByVal value As Variant) As String
     Dim textValue As String
-    textValue = LCase$(Trim$(CStr(value)))
-    Do While InStr(textValue, "  ") > 0
-        textValue = Replace$(textValue, "  ", " ")
-    Loop
-    NormalizeKey = textValue
+    Dim sourceChars As Variant
+    Dim targetChars As Variant
+    Dim charIndex As Long
+    Dim currentChar As String
+    Dim result As String
+
+    textValue = LCase$(Trim$(ValueToExportText(value)))
+    sourceChars = Array( _
+        UnicodeText("00E0"), UnicodeText("00E1"), UnicodeText("1EA3"), UnicodeText("00E3"), UnicodeText("1EA1"), _
+        UnicodeText("0103"), UnicodeText("1EB1"), UnicodeText("1EAF"), UnicodeText("1EB3"), UnicodeText("1EB5"), UnicodeText("1EB7"), _
+        UnicodeText("00E2"), UnicodeText("1EA7"), UnicodeText("1EA5"), UnicodeText("1EA9"), UnicodeText("1EAB"), UnicodeText("1EAD"), _
+        UnicodeText("0111"), _
+        UnicodeText("00E8"), UnicodeText("00E9"), UnicodeText("1EBB"), UnicodeText("1EBD"), UnicodeText("1EB9"), _
+        UnicodeText("00EA"), UnicodeText("1EC1"), UnicodeText("1EBF"), UnicodeText("1EC3"), UnicodeText("1EC5"), UnicodeText("1EC7"), _
+        UnicodeText("00EC"), UnicodeText("00ED"), UnicodeText("1EC9"), UnicodeText("0129"), UnicodeText("1ECB"), _
+        UnicodeText("00F2"), UnicodeText("00F3"), UnicodeText("1ECF"), UnicodeText("00F5"), UnicodeText("1ECD"), _
+        UnicodeText("00F4"), UnicodeText("1ED3"), UnicodeText("1ED1"), UnicodeText("1ED5"), UnicodeText("1ED7"), UnicodeText("1ED9"), _
+        UnicodeText("01A1"), UnicodeText("1EDD"), UnicodeText("1EDB"), UnicodeText("1EDF"), UnicodeText("1EE1"), UnicodeText("1EE3"), _
+        UnicodeText("00F9"), UnicodeText("00FA"), UnicodeText("1EE7"), UnicodeText("0169"), UnicodeText("1EE5"), _
+        UnicodeText("01B0"), UnicodeText("1EEB"), UnicodeText("1EE9"), UnicodeText("1EED"), UnicodeText("1EEF"), UnicodeText("1EF1"), _
+        UnicodeText("1EF3"), UnicodeText("00FD"), UnicodeText("1EF7"), UnicodeText("1EF9"), UnicodeText("1EF5"))
+    targetChars = Array( _
+        "a", "a", "a", "a", "a", "a", "a", "a", "a", "a", "a", _
+        "a", "a", "a", "a", "a", "a", _
+        "d", _
+        "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "e", _
+        "i", "i", "i", "i", "i", _
+        "o", "o", "o", "o", "o", "o", "o", "o", "o", "o", "o", _
+        "o", "o", "o", "o", "o", "o", _
+        "u", "u", "u", "u", "u", "u", "u", "u", "u", "u", "u", _
+        "y", "y", "y", "y", "y")
+    For charIndex = LBound(sourceChars) To UBound(sourceChars)
+        textValue = Replace$(textValue, sourceChars(charIndex), targetChars(charIndex))
+    Next charIndex
+
+    For charIndex = 1 To Len(textValue)
+        currentChar = Mid$(textValue, charIndex, 1)
+        If (currentChar >= "a" And currentChar <= "z") Or _
+           (currentChar >= "0" And currentChar <= "9") Then
+            result = result & currentChar
+        End If
+    Next charIndex
+    NormalizeKey = result
 End Function
 
 Public Function DateDisplay(ByVal value As Variant) As String
     If IsDate(value) Then
         DateDisplay = Format$(CDate(value), "dd/mm/yyyy")
     Else
-        DateDisplay = Trim$(CStr(value))
+        DateDisplay = Trim$(ValueToExportText(value))
     End If
 End Function
 
 Public Function HasEngineDate(ByVal rowIndex As Long, ByVal calcHeader As String) As Boolean
-    HasEngineDate = IsDate(PersonCell(rowIndex, calcHeader).Value)
+    HasEngineDate = IsDate(PersonTechCell(rowIndex, calcHeader).Value)
 End Function
 
 Public Function EngineDateDisplay(ByVal rowIndex As Long, ByVal calcHeader As String) As String
     If HasEngineDate(rowIndex, calcHeader) Then
-        EngineDateDisplay = Format$(CDate(PersonCell(rowIndex, calcHeader).Value), "dd/mm/yyyy")
+        EngineDateDisplay = Format$(CDate(PersonTechCell(rowIndex, calcHeader).Value), "dd/mm/yyyy")
     Else
         EngineDateDisplay = vbNullString
     End If
@@ -197,18 +376,18 @@ End Function
 Public Function AgeAtDeath(ByVal rowIndex As Long) As Variant
     If Not HasEngineDate(rowIndex, COL_BIRTH_CALC) Then Exit Function
     If Not HasEngineDate(rowIndex, COL_DEATH_CALC) Then Exit Function
-    If CDate(PersonCell(rowIndex, COL_DEATH_CALC).Value) < _
-       CDate(PersonCell(rowIndex, COL_BIRTH_CALC).Value) Then Exit Function
+    If CDate(PersonTechCell(rowIndex, COL_DEATH_CALC).Value) < _
+       CDate(PersonTechCell(rowIndex, COL_BIRTH_CALC).Value) Then Exit Function
 
-    AgeAtDeath = FullYearsBetween(CDate(PersonCell(rowIndex, COL_BIRTH_CALC).Value), _
-                                  CDate(PersonCell(rowIndex, COL_DEATH_CALC).Value))
+    AgeAtDeath = FullYearsBetween(CDate(PersonTechCell(rowIndex, COL_BIRTH_CALC).Value), _
+                                  CDate(PersonTechCell(rowIndex, COL_DEATH_CALC).Value))
 End Function
 
 Public Function YearDisplay(ByVal value As Variant) As String
     If IsDate(value) Then
         YearDisplay = CStr(Year(CDate(value)))
     Else
-        YearDisplay = Trim$(CStr(value))
+        YearDisplay = Trim$(ValueToExportText(value))
     End If
 End Function
 

@@ -131,7 +131,7 @@ Private Function NamespaceValue(ByVal inner As String) As String
     ElseIf p(0) = "tai_san" And UBound(p) >= 2 Then
         Set lo = ThisWorkbook.Worksheets(SHEET_EXPORT).ListObjects(TABLE_ASSET_EXPORT)
         For i = 1 To lo.ListRows.Count
-            If CLng(lo.DataBodyRange.Cells(i, 1).Value2) = CLng(p(1)) Then NamespaceValue = CStr(lo.DataBodyRange.Cells(i, lo.ListColumns(p(2)).Index).Value2): Exit Function
+            If CLng(lo.DataBodyRange.Cells(i, 1).Value2) = CLng(p(1)) Then NamespaceValue = ValueToExportText(lo.DataBodyRange.Cells(i, lo.ListColumns(p(2)).Index).Value2): Exit Function
         Next i
     End If
 End Function
@@ -156,7 +156,7 @@ Private Function ExportSectionValue(ByVal sectionName As String, ByVal fieldName
             For columnIndex = 1 To lastColumn
                 If CStr(wsExport.Cells(sectionRow + 1, columnIndex).Value2) = fieldName Then
                     value = wsExport.Cells(sectionRow + 2, columnIndex).Value2
-                    If Not IsError(value) And Not IsEmpty(value) Then ExportSectionValue = CStr(value)
+                    ExportSectionValue = ValueToExportText(value)
                     Exit Function
                 End If
             Next columnIndex

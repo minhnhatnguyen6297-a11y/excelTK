@@ -6,7 +6,9 @@ Public Sub BuildExportData()
     Dim nextRow As Long
 
     Set wsExport = ThisWorkbook.Worksheets(SHEET_EXPORT)
-    wsExport.Cells.ClearContents
+    ' Vung AW:BK chua tblNguoiKyThuat. Chi xoa vung xuat trung gian A:V
+    ' de khong lam mat du lieu ky thuat Nguoi.
+    wsExport.Range("A:V").ClearContents
 
     wsExport.Range("A1").Value2 = "DỮ LIỆU XUẤT — KHÔNG NHẬP TAY"
     nextRow = 3
@@ -38,15 +40,36 @@ Private Function WriteAssetSection(ByVal ws As Worksheet, ByVal startRow As Long
 End Function
 
 Private Function WriteHoSoSection(ByVal ws As Worksheet, ByVal startRow As Long) As Long
-    Dim fields As Variant, i As Long
-    fields = Array("NiemYet", "SoCongChung", "NguoiUyQuyen", "NguoiUyQuyen2")
+    Dim wsInput As Worksheet
+    Dim profileRow As Long
+    Dim outputColumn As Long
+    Dim labelText As String
+    Dim valueText As Variant
+
+    Set wsInput = ThisWorkbook.Worksheets(SHEET_INPUT)
     ws.Cells(startRow, 1).Value2 = "HoSo"
-    For i = 0 To UBound(fields)
-        ws.Cells(startRow + 1, i + 1).Value2 = fields(i)
-        ws.Cells(startRow + 2, i + 1).NumberFormat = "@"
-        ws.Cells(startRow + 2, i + 1).Value2 = ThisWorkbook.Worksheets(SHEET_INPUT).Cells(103 + i, 3).Value2
-    Next i
+    outputColumn = 1
+    For profileRow = PROFILE_FIRST_DATA_ROW To ProfileLastDataRow()
+        labelText = Trim$(ValueToExportText(wsInput.Cells(profileRow, 2).Value2))
+        If Len(labelText) > 0 Then
+            ws.Cells(startRow + 1, outputColumn).Value2 = ProfileFieldName(labelText)
+            ws.Cells(startRow + 2, outputColumn).NumberFormat = "@"
+            valueText = ValueToExportText(wsInput.Cells(profileRow, 3).Value2)
+            ws.Cells(startRow + 2, outputColumn).Value2 = valueText
+            outputColumn = outputColumn + 1
+        End If
+    Next profileRow
     WriteHoSoSection = startRow + 4
+End Function
+
+Private Function ProfileFieldName(ByVal labelText As String) As String
+    Select Case NormalizeKey(labelText)
+        Case NormalizeKey(UnicodeText("004E 0069 00EA 006D 0020 0079 1EBF 0074")): ProfileFieldName = "NiemYet"
+        Case NormalizeKey(UnicodeText("0053 1ED1 0020 0063 00F4 006E 0067 0020 0063 0068 1EE9 006E 0067")): ProfileFieldName = "SoCongChung"
+        Case NormalizeKey(UnicodeText("004E 0067 01B0 1EDD 0069 0020 1EE7 0079 0020 0071 0075 0079 1EC1 006E")): ProfileFieldName = "NguoiUyQuyen"
+        Case NormalizeKey(UnicodeText("004E 0067 01B0 1EDD 0069 0020 1EE7 0079 0020 0071 0075 0079 1EC1 006E 0020 0032")): ProfileFieldName = "NguoiUyQuyen2"
+        Case Else: ProfileFieldName = labelText
+    End Select
 End Function
 
 Public Function LegacySlotValue(ByVal slot As Long, ByVal fieldName As String) As String
@@ -61,14 +84,14 @@ Public Function LegacySlotValue(ByVal slot As Long, ByVal fieldName As String) A
         Case "CCCD": cellValue = PersonCell(rowIndex, COL_DOCNO).Value2
         Case "Ngay cap": cellValue = PersonCell(rowIndex, COL_ISSUED).Value2
         Case "Dia chi": cellValue = PersonCell(rowIndex, COL_ADDRESS).Value2
-        Case "Loai CC": cellValue = PersonCell(rowIndex, COL_LOAI_CC).Value2
-        Case "Noi cap CC": cellValue = PersonCell(rowIndex, COL_NOI_CAP_CC).Value2
-        Case "Thuong tru": cellValue = PersonCell(rowIndex, COL_NHAN_DIA_CHI).Value2
+        Case "Loai CC": cellValue = PersonTechCell(rowIndex, COL_LOAI_CC).Value2
+        Case "Noi cap CC": cellValue = PersonTechCell(rowIndex, COL_NOI_CAP_CC).Value2
+        Case "Thuong tru": cellValue = PersonTechCell(rowIndex, COL_NHAN_DIA_CHI).Value2
         Case "Nam chet": cellValue = PersonCell(rowIndex, COL_DEATH).Value2
         Case "Nam chet 2": cellValue = PersonCell(rowIndex, COL_DEATH).Value2
         Case Else: Exit Function
     End Select
-    If Not IsError(cellValue) And Not IsEmpty(cellValue) Then LegacySlotValue = CStr(cellValue)
+    LegacySlotValue = ValueToExportText(cellValue)
 End Function
 
 Private Function SlotPersonRow(ByVal slot As Long) As Long
@@ -78,7 +101,7 @@ Private Function SlotPersonRow(ByVal slot As Long) As Long
     If lo.DataBodyRange Is Nothing Then Exit Function
     For r = 1 To lo.DataBodyRange.Rows.Count
         If PersonHasData(r) Then
-            If SafeBool(PersonCell(r, COL_OWNER).Value2) Then ownerCount = ownerCount + 1 Else otherCount = otherCount + 1
+            If SafeBool(PersonTechCell(r, COL_OWNER).Value2) Then ownerCount = ownerCount + 1 Else otherCount = otherCount + 1
         End If
     Next r
     If ownerCount > 0 Then ReDim owners(1 To ownerCount)
@@ -86,7 +109,7 @@ Private Function SlotPersonRow(ByVal slot As Long) As Long
     ownerCount = 0: otherCount = 0
     For r = 1 To lo.DataBodyRange.Rows.Count
         If PersonHasData(r) Then
-            If SafeBool(PersonCell(r, COL_OWNER).Value2) Then ownerCount = ownerCount + 1: owners(ownerCount) = r Else otherCount = otherCount + 1: others(otherCount) = r
+            If SafeBool(PersonTechCell(r, COL_OWNER).Value2) Then ownerCount = ownerCount + 1: owners(ownerCount) = r Else otherCount = otherCount + 1: others(otherCount) = r
         End If
     Next r
     For i = 1 To ownerCount - 1: For j = i + 1 To ownerCount: If SafeLong(PersonCell(owners(j), COL_STT).Value2, 0) < SafeLong(PersonCell(owners(i), COL_STT).Value2, 0) Then swapRow = owners(i): owners(i) = owners(j): owners(j) = swapRow
@@ -124,7 +147,7 @@ Private Function WriteGroupSection(ByVal wsExport As Worksheet, ByVal startRow A
             If ShouldIncludePerson(rowIndex, groupName) Then
                 groupId = vbNullString
                 If groupName = "CacNhomTuChoi" Then
-                    groupId = Trim$(CStr(PersonCell(rowIndex, COL_REFUSAL_GROUP).Value2))
+                    groupId = Trim$(ValueToExportText(PersonTechCell(rowIndex, COL_REFUSAL_GROUP).Value2))
                     If Len(groupId) = 0 Then groupId = "TC_DEFAULT"
                 End If
                 WriteExportPerson wsExport, outputRow, groupName, groupId, rowIndex
@@ -152,7 +175,7 @@ Private Function ShouldIncludePerson(ByVal rowIndex As Long, ByVal groupName As 
 
     Select Case groupName
         Case "ChuDat"
-            ShouldIncludePerson = SafeBool(PersonCell(rowIndex, COL_OWNER).Value2)
+            ShouldIncludePerson = SafeBool(PersonTechCell(rowIndex, COL_OWNER).Value2)
         Case "NguoiDaChet"
             ShouldIncludePerson = hasDeath
         Case "NguoiNhanDat"
@@ -170,39 +193,39 @@ Private Sub WriteExportPerson(ByVal wsExport As Worksheet, ByVal outputRow As Lo
     wsExport.Cells(outputRow, 1).Value2 = groupName
     wsExport.Cells(outputRow, 2).Value2 = groupId
     wsExport.Cells(outputRow, 3).Value2 = PersonCell(personRow, COL_STT).Value2
-    wsExport.Cells(outputRow, 4).Value2 = PersonCell(personRow, COL_ID).Value2
+    wsExport.Cells(outputRow, 4).Value2 = PersonTechCell(personRow, COL_ID).Value2
     wsExport.Cells(outputRow, 5).Value2 = PersonCell(personRow, COL_NAME).Value2
     wsExport.Cells(outputRow, 6).NumberFormat = "@"
     wsExport.Cells(outputRow, 6).Value2 = PersonCell(personRow, COL_BIRTH).Value2
     wsExport.Cells(outputRow, 7).NumberFormat = "@"
-    wsExport.Cells(outputRow, 7).Value2 = PersonCell(personRow, COL_BIRTH_RAW).Value2
+    wsExport.Cells(outputRow, 7).Value2 = PersonTechCell(personRow, COL_BIRTH_RAW).Value2
     If HasEngineDate(personRow, COL_BIRTH_CALC) Then
-        wsExport.Cells(outputRow, 8).Value = PersonCell(personRow, COL_BIRTH_CALC).Value
+        wsExport.Cells(outputRow, 8).Value = PersonTechCell(personRow, COL_BIRTH_CALC).Value
         wsExport.Cells(outputRow, 8).NumberFormat = "dd/mm/yyyy"
     End If
     wsExport.Cells(outputRow, 9).NumberFormat = "@"
     wsExport.Cells(outputRow, 9).Value2 = PersonCell(personRow, COL_DEATH).Value2
     wsExport.Cells(outputRow, 10).NumberFormat = "@"
-    wsExport.Cells(outputRow, 10).Value2 = PersonCell(personRow, COL_DEATH_RAW).Value2
+    wsExport.Cells(outputRow, 10).Value2 = PersonTechCell(personRow, COL_DEATH_RAW).Value2
     If HasEngineDate(personRow, COL_DEATH_CALC) Then
-        wsExport.Cells(outputRow, 11).Value = PersonCell(personRow, COL_DEATH_CALC).Value
+        wsExport.Cells(outputRow, 11).Value = PersonTechCell(personRow, COL_DEATH_CALC).Value
         wsExport.Cells(outputRow, 11).NumberFormat = "dd/mm/yyyy"
     End If
     wsExport.Cells(outputRow, 12).Value2 = PersonCell(personRow, COL_DOCNO).Value2
     wsExport.Cells(outputRow, 13).NumberFormat = "@"
     wsExport.Cells(outputRow, 13).Value2 = PersonCell(personRow, COL_ISSUED).Value2
     wsExport.Cells(outputRow, 14).NumberFormat = "@"
-    wsExport.Cells(outputRow, 14).Value2 = PersonCell(personRow, COL_ISSUED_RAW).Value2
+    wsExport.Cells(outputRow, 14).Value2 = PersonTechCell(personRow, COL_ISSUED_RAW).Value2
     If HasEngineDate(personRow, COL_ISSUED_CALC) Then
-        wsExport.Cells(outputRow, 15).Value = PersonCell(personRow, COL_ISSUED_CALC).Value
+        wsExport.Cells(outputRow, 15).Value = PersonTechCell(personRow, COL_ISSUED_CALC).Value
         wsExport.Cells(outputRow, 15).NumberFormat = "dd/mm/yyyy"
     End If
     wsExport.Cells(outputRow, 16).Value2 = PersonCell(personRow, COL_ADDRESS).Value2
     wsExport.Cells(outputRow, 17).Value2 = PersonCell(personRow, COL_LEVEL).Value2
-    wsExport.Cells(outputRow, 18).Value2 = PersonCell(personRow, COL_PARENT).Value2
-    wsExport.Cells(outputRow, 19).Value2 = PersonCell(personRow, COL_OWNER).Value2
+    wsExport.Cells(outputRow, 18).Value2 = PersonTechCell(personRow, COL_PARENT).Value2
+    wsExport.Cells(outputRow, 19).Value2 = PersonTechCell(personRow, COL_OWNER).Value2
     wsExport.Cells(outputRow, 20).Value2 = SafeBool(PersonCell(personRow, COL_RECEIVE).Value2)
-    wsExport.Cells(outputRow, 21).Value2 = PersonCell(personRow, COL_STATUS).Value2
+    wsExport.Cells(outputRow, 21).Value2 = PersonTechCell(personRow, COL_STATUS).Value2
     wsExport.Cells(outputRow, 22).Value2 = AgeAtDeath(personRow)
 End Sub
 
@@ -239,7 +262,7 @@ Public Function BranchSummary() As String
             If PersonHasData(rowIndex) Then
                 levelValue = SafeLong(PersonCell(rowIndex, COL_LEVEL).Value2, 0)
                 itemText = "Hàng TK " & CStr(levelValue) & ": " & PersonName(rowIndex)
-                parentName = ParentPersonName(Trim$(CStr(PersonCell(rowIndex, COL_PARENT).Value2)))
+                parentName = ParentPersonName(Trim$(ValueToExportText(PersonTechCell(rowIndex, COL_PARENT).Value2)))
                 If Len(parentName) > 0 Then itemText = itemText & " (thuộc nhánh " & parentName & ")"
                 parts.Add itemText
             End If
@@ -258,7 +281,7 @@ Public Function FirstPersonDate(ByVal displayHeader As String) As String
 
     For rowIndex = 1 To lo.DataBodyRange.Rows.Count
         If PersonHasData(rowIndex) Then
-            FirstPersonDate = Trim$(CStr(PersonCell(rowIndex, displayHeader).Value2))
+            FirstPersonDate = Trim$(ValueToExportText(PersonCell(rowIndex, displayHeader).Value2))
             Exit Function
         End If
     Next rowIndex
@@ -289,7 +312,7 @@ Private Function ParentPersonName(ByVal parentId As String) As String
     Set lo = PeopleTable()
 
     For rowIndex = 1 To lo.DataBodyRange.Rows.Count
-        If Trim$(CStr(PersonCell(rowIndex, COL_ID).Value2)) = parentId Then
+        If Trim$(ValueToExportText(PersonTechCell(rowIndex, COL_ID).Value2)) = parentId Then
             ParentPersonName = PersonName(rowIndex)
             Exit Function
         End If

@@ -5,6 +5,7 @@ Private Sub Workbook_Open()
     Application.EnableEvents = False
     ApplyWorkbookProtection
     RefreshAllPeople
+    RefreshWordSelectionDisplay
     ThisWorkbook.Worksheets(SHEET_INPUT).Activate
     ThisWorkbook.Worksheets(SHEET_INPUT).Range("B9").Select
 SafeExit:

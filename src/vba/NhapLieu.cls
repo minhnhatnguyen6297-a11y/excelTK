@@ -21,23 +21,33 @@ End Sub
 
 Private Sub Worksheet_Change(ByVal Target As Range)
     Dim lo As ListObject
-    Dim assetRange As Range
+    Dim assetIndex As Long
+    Dim extensionAffected As Boolean
+    Dim assetAffected As Boolean
+    Dim peopleAffected As Boolean
 
     On Error GoTo SafeExit
-    Set assetRange = Me.Range(Me.Cells(ASSET_FIRST_CARD_ROW + 1, ASSET_VALUE_COLUMN), _
-                                Me.Cells(ASSET_FIRST_CARD_ROW + (ASSET_CARD_HEIGHT * ASSET_CARD_COUNT) - 2, 7))
-    If Not Intersect(Target, assetRange) Is Nothing Then
-        Application.EnableEvents = False
-        HandleTaiSanChange Target
-        GoTo SafeExit
+    If Not Intersect(Target, PersonExtensionRange()) Is Nothing Then
+        extensionAffected = True
     End If
 
+    For assetIndex = 1 To ASSET_CARD_COUNT
+        If Not Intersect(Target, AssetInputRange(assetIndex)) Is Nothing Then
+            assetAffected = True
+            Exit For
+        End If
+    Next assetIndex
+
     Set lo = Me.ListObjects(TABLE_PEOPLE)
-    If lo.DataBodyRange Is Nothing Then Exit Sub
-    If Intersect(Target, lo.DataBodyRange) Is Nothing Then Exit Sub
+    If Not lo.DataBodyRange Is Nothing Then
+        peopleAffected = Not Intersect(Target, lo.DataBodyRange) Is Nothing
+    End If
+    If Not extensionAffected And Not assetAffected And Not peopleAffected Then Exit Sub
 
     Application.EnableEvents = False
-    HandlePeopleChange Target
+    If extensionAffected Then HandlePersonExtensionChange Target
+    If assetAffected Then HandleTaiSanChange Target
+    If peopleAffected Then HandlePeopleChange Target
 
 SafeExit:
     Application.EnableEvents = True

@@ -26,10 +26,19 @@ Public Sub RefreshAllPeople()
 
     previousLevel = 1
     For rowIndex = 1 To rows.Rows.Count
+        If PersonHasData(rowIndex) Then
+            currentStt = SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0)
+            If currentStt <= 0 Then
+                maxStt = maxStt + 1
+                PersonCell(rowIndex, COL_STT).Value2 = maxStt
+            End If
+            SyncPersonTechStt rowIndex
+        End If
+
         If rowIndex <= 2 Then
             PersonCell(rowIndex, COL_LEVEL).Value2 = 0
-            PersonCell(rowIndex, COL_PARENT).ClearContents
-            PersonCell(rowIndex, COL_OWNER).Value2 = PersonHasData(rowIndex)
+            PersonTechCell(rowIndex, COL_PARENT).ClearContents
+            PersonTechCell(rowIndex, COL_OWNER).Value2 = PersonHasData(rowIndex)
         ElseIf PersonHasData(rowIndex) Then
             levelValue = SafeLong(PersonCell(rowIndex, COL_LEVEL).Value2, 0)
             If levelValue < 1 Or levelValue > 4 Then
@@ -41,13 +50,16 @@ Public Sub RefreshAllPeople()
                 PersonCell(rowIndex, COL_LEVEL).Value2 = levelValue
             End If
             previousLevel = levelValue
-            PersonCell(rowIndex, COL_OWNER).Value2 = False
+            PersonTechCell(rowIndex, COL_OWNER).Value2 = False
         Else
+            If SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0) > 0 Then
+                PersonTechCell(rowIndex, COL_ID).ClearContents
+                PersonTechCell(rowIndex, COL_PARENT).ClearContents
+                PersonTechCell(rowIndex, COL_OWNER).Value2 = False
+                PersonTechCell(rowIndex, COL_REFUSAL_GROUP).ClearContents
+                PersonTechCell(rowIndex, COL_STT).ClearContents
+            End If
             PersonCell(rowIndex, COL_STT).ClearContents
-            PersonCell(rowIndex, COL_ID).ClearContents
-            PersonCell(rowIndex, COL_PARENT).ClearContents
-            PersonCell(rowIndex, COL_OWNER).Value2 = False
-            PersonCell(rowIndex, COL_REFUSAL_GROUP).ClearContents
             PersonCell(rowIndex, COL_RECEIVE).Value2 = 0
             If rowIndex > 2 And SafeLong(PersonCell(rowIndex, COL_LEVEL).Value2, 0) < 1 Then
                 PersonCell(rowIndex, COL_LEVEL).Value2 = previousLevel
@@ -55,19 +67,128 @@ Public Sub RefreshAllPeople()
         End If
 
         If PersonHasData(rowIndex) Then
-            personId = Trim$(CStr(PersonCell(rowIndex, COL_ID).Value2))
-            If Len(personId) = 0 Then PersonCell(rowIndex, COL_ID).Value2 = NextPersonId()
+            personId = Trim$(ValueToExportText(PersonTechCell(rowIndex, COL_ID).Value2))
+            If Len(personId) = 0 Then PersonTechCell(rowIndex, COL_ID).Value2 = NextPersonId()
 
             currentStt = SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0)
             If currentStt <= 0 Then
                 maxStt = maxStt + 1
                 PersonCell(rowIndex, COL_STT).Value2 = maxStt
             End If
+            SyncPersonTechStt rowIndex
         End If
     Next rowIndex
 
+    NormalizeAllDates False
+    RefreshPersonExtensionColumns
     RebuildParentLinks
     UpdateAllStatuses
+End Sub
+
+Public Sub RefreshPersonExtensionColumns()
+    Dim ws As Worksheet
+    Dim columnNumber As Long
+    Dim rowNumber As Long
+    Dim headerText As String
+    Dim cell As Range
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
+    For columnNumber = PERSON_EXTENSION_FIRST_COLUMN To PERSON_EXTENSION_LAST_COLUMN
+        headerText = Trim$(ValueToExportText(ws.Cells(PERSON_EXTENSION_HEADER_ROW, columnNumber).Value2))
+        ws.Columns(columnNumber).Hidden = (Len(headerText) = 0)
+        For rowNumber = PERSON_EXTENSION_FIRST_ROW To PERSON_EXTENSION_LAST_ROW
+            Set cell = ws.Cells(rowNumber, columnNumber)
+            NormalizePersonExtensionCell cell
+        Next rowNumber
+    Next columnNumber
+End Sub
+
+Public Sub HandlePersonExtensionChange(ByVal changedRange As Range)
+    Dim ws As Worksheet
+    Dim affected As Range
+    Dim oneCell As Range
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
+    Set affected = Intersect(changedRange, PersonExtensionRange())
+    If affected Is Nothing Then Exit Sub
+
+    For Each oneCell In affected.Cells
+        If oneCell.Row = PERSON_EXTENSION_HEADER_ROW Then
+            ws.Columns(oneCell.Column).Hidden = (Len(Trim$(ValueToExportText(oneCell.Value2))) = 0)
+        ElseIf oneCell.Row >= PERSON_EXTENSION_FIRST_ROW Then
+            NormalizePersonExtensionCell oneCell
+        End If
+    Next oneCell
+End Sub
+
+Public Sub DongBoTruong()
+    SyncPersonExtensionFields
+End Sub
+
+Public Sub SyncPersonExtensionFields()
+    Dim ws As Worksheet
+    Dim columnNumber As Long
+    Dim rowNumber As Long
+    Dim sourceRow As Long
+    Dim headerText As String
+    Dim sourceCell As Range
+    Dim targetCell As Range
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_INPUT)
+    For columnNumber = PERSON_EXTENSION_FIRST_COLUMN To PERSON_EXTENSION_LAST_COLUMN
+        headerText = Trim$(ValueToExportText(ws.Cells(PERSON_EXTENSION_HEADER_ROW, columnNumber).Value2))
+        If Len(headerText) > 0 Then
+            sourceRow = 0
+            For rowNumber = PERSON_EXTENSION_FIRST_ROW To PERSON_EXTENSION_LAST_ROW
+                Set sourceCell = ws.Cells(rowNumber, columnNumber)
+                NormalizePersonExtensionCell sourceCell
+                If sourceCell.HasFormula Then
+                    sourceRow = rowNumber
+                    Exit For
+                End If
+            Next rowNumber
+
+            If sourceRow > 0 Then
+                Set sourceCell = ws.Cells(sourceRow, columnNumber)
+                For rowNumber = sourceRow + 1 To PERSON_EXTENSION_LAST_ROW
+                    Set targetCell = ws.Cells(rowNumber, columnNumber)
+                    NormalizePersonExtensionCell targetCell
+                    If targetCell.HasFormula Then
+                        targetCell.NumberFormat = "General"
+                    ElseIf Len(Trim$(ValueToExportText(targetCell.Value2))) = 0 Then
+                        targetCell.FormulaR1C1 = sourceCell.FormulaR1C1
+                        targetCell.NumberFormat = "General"
+                    Else
+                        targetCell.NumberFormat = "@"
+                    End If
+                Next rowNumber
+            End If
+        End If
+    Next columnNumber
+
+    RefreshPersonExtensionColumns
+End Sub
+
+Private Sub NormalizePersonExtensionCell(ByVal targetCell As Range)
+    Dim enteredText As String
+    Dim conversionFailed As Boolean
+
+    If targetCell.HasFormula Then
+        targetCell.NumberFormat = "General"
+        Exit Sub
+    End If
+
+    enteredText = ValueToExportText(targetCell.Value2)
+    If Left$(enteredText, 1) = "=" Then
+        On Error Resume Next
+        targetCell.NumberFormat = "General"
+        targetCell.Formula = enteredText
+        conversionFailed = (Err.Number <> 0)
+        Err.Clear
+        On Error GoTo 0
+        If Not conversionFailed And targetCell.HasFormula Then Exit Sub
+    End If
+    targetCell.NumberFormat = "@"
 End Sub
 
 Public Sub RebuildParentLinks()
@@ -81,17 +202,19 @@ Public Sub RebuildParentLinks()
 
     For rowIndex = 1 To lo.DataBodyRange.Rows.Count
         If Not PersonHasData(rowIndex) Then
-            PersonCell(rowIndex, COL_PARENT).ClearContents
+            If SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0) > 0 Then
+                PersonTechCell(rowIndex, COL_PARENT).ClearContents
+            End If
         Else
             levelValue = SafeLong(PersonCell(rowIndex, COL_LEVEL).Value2, 0)
             If rowIndex <= 2 Or levelValue <= 1 Then
-                PersonCell(rowIndex, COL_PARENT).ClearContents
+                PersonTechCell(rowIndex, COL_PARENT).ClearContents
             Else
                 parentRow = FindPreviousParentRow(rowIndex, levelValue - 1)
                 If parentRow > 0 Then
-                    PersonCell(rowIndex, COL_PARENT).Value2 = PersonCell(parentRow, COL_ID).Value2
+                    PersonTechCell(rowIndex, COL_PARENT).Value2 = PersonTechCell(parentRow, COL_ID).Value2
                 Else
-                    PersonCell(rowIndex, COL_PARENT).ClearContents
+                    PersonTechCell(rowIndex, COL_PARENT).ClearContents
                 End If
             End If
         End If
@@ -125,13 +248,15 @@ End Sub
 
 Public Sub UpdatePersonStatus(ByVal rowIndex As Long)
     If Not PersonHasData(rowIndex) Then
-        PersonCell(rowIndex, COL_STATUS).ClearContents
+        If SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0) > 0 Then
+            PersonTechCell(rowIndex, COL_STATUS).ClearContents
+        End If
     ElseIf HasEngineDate(rowIndex, COL_DEATH_CALC) Then
-        PersonCell(rowIndex, COL_STATUS).Value2 = "Đã chết"
+        PersonTechCell(rowIndex, COL_STATUS).Value2 = "Đã chết"
     ElseIf SafeBool(PersonCell(rowIndex, COL_RECEIVE).Value2) Then
-        PersonCell(rowIndex, COL_STATUS).Value2 = "Nhận đất"
+        PersonTechCell(rowIndex, COL_STATUS).Value2 = "Nhận đất"
     Else
-        PersonCell(rowIndex, COL_STATUS).Value2 = "Từ chối"
+        PersonTechCell(rowIndex, COL_STATUS).Value2 = "Từ chối"
     End If
 End Sub
 
@@ -144,7 +269,6 @@ Public Sub HandlePeopleChange(ByVal changedRange As Range)
     Dim rowIndex As Long
     Dim deathWasChanged As Boolean
     Dim receiveWasChanged As Boolean
-    Dim nameWasChanged As Boolean
 
     Set lo = PeopleTable()
     If lo.DataBodyRange Is Nothing Then Exit Sub
@@ -161,25 +285,24 @@ Public Sub HandlePeopleChange(ByVal changedRange As Range)
         End If
     Next oneCell
 
-    nameWasChanged = Not Intersect(affected, lo.ListColumns(COL_NAME).DataBodyRange) Is Nothing
-
     For Each rowKey In affectedRows.Keys
         rowIndex = CLng(affectedRows(rowKey))
         InitializePersonRow rowIndex
+        NormalizeChangedDateCells lo.DataBodyRange.Rows.Item(rowIndex), False
 
         deathWasChanged = Not Intersect(affected, PersonCell(rowIndex, COL_DEATH)) Is Nothing
         receiveWasChanged = Not Intersect(affected, PersonCell(rowIndex, COL_RECEIVE)) Is Nothing
-        If Not Intersect(affected, PersonCell(rowIndex, COL_ISSUED)) Is Nothing Then
-            UpdateGiayToForRow rowIndex
+        If PersonHasData(rowIndex) Then
+            If Not Intersect(affected, PersonCell(rowIndex, COL_ISSUED)) Is Nothing Then
+                UpdateGiayToForRow rowIndex
+            End If
+            If deathWasChanged Or receiveWasChanged Then
+                ResolveDeathReceiveConflict rowIndex, deathWasChanged
+            End If
         End If
-        If deathWasChanged Or receiveWasChanged Then
-            ResolveDeathReceiveConflict rowIndex, deathWasChanged
-        End If
-
         UpdatePersonStatus rowIndex
     Next rowKey
 
-    If nameWasChanged Then RebuildParentLinks
 End Sub
 
 Private Sub InitializePersonRow(ByVal rowIndex As Long)
@@ -188,10 +311,18 @@ Private Sub InitializePersonRow(ByVal rowIndex As Long)
     Dim maxStt As Long
     Dim scanRow As Long
 
+    If PersonHasData(rowIndex) And SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0) <= 0 Then
+        For scanRow = 1 To PeopleTable().DataBodyRange.Rows.Count
+            maxStt = Application.Max(maxStt, SafeLong(PersonCell(scanRow, COL_STT).Value2, 0))
+        Next scanRow
+        PersonCell(rowIndex, COL_STT).Value2 = maxStt + 1
+    End If
+    If PersonHasData(rowIndex) Then SyncPersonTechStt rowIndex
+
     If rowIndex <= 2 Then
         PersonCell(rowIndex, COL_LEVEL).Value2 = 0
-        PersonCell(rowIndex, COL_PARENT).ClearContents
-        PersonCell(rowIndex, COL_OWNER).Value2 = PersonHasData(rowIndex)
+        PersonTechCell(rowIndex, COL_PARENT).ClearContents
+        PersonTechCell(rowIndex, COL_OWNER).Value2 = PersonHasData(rowIndex)
     ElseIf PersonHasData(rowIndex) Then
         levelValue = SafeLong(PersonCell(rowIndex, COL_LEVEL).Value2, 0)
         If levelValue < 1 Or levelValue > 4 Then
@@ -203,19 +334,22 @@ Private Sub InitializePersonRow(ByVal rowIndex As Long)
             End If
             PersonCell(rowIndex, COL_LEVEL).Value2 = levelValue
         End If
-        PersonCell(rowIndex, COL_OWNER).Value2 = False
+        PersonTechCell(rowIndex, COL_OWNER).Value2 = False
     Else
+        If SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0) > 0 Then
+            PersonTechCell(rowIndex, COL_ID).ClearContents
+            PersonTechCell(rowIndex, COL_PARENT).ClearContents
+            PersonTechCell(rowIndex, COL_OWNER).Value2 = False
+            PersonTechCell(rowIndex, COL_REFUSAL_GROUP).ClearContents
+            PersonTechCell(rowIndex, COL_STT).ClearContents
+        End If
         PersonCell(rowIndex, COL_STT).ClearContents
-        PersonCell(rowIndex, COL_ID).ClearContents
-        PersonCell(rowIndex, COL_PARENT).ClearContents
-        PersonCell(rowIndex, COL_OWNER).Value2 = False
-        PersonCell(rowIndex, COL_REFUSAL_GROUP).ClearContents
         PersonCell(rowIndex, COL_RECEIVE).Value2 = 0
         Exit Sub
     End If
 
-    If Len(Trim$(CStr(PersonCell(rowIndex, COL_ID).Value2))) = 0 Then
-        PersonCell(rowIndex, COL_ID).Value2 = NextPersonId()
+    If Len(Trim$(ValueToExportText(PersonTechCell(rowIndex, COL_ID).Value2))) = 0 Then
+        PersonTechCell(rowIndex, COL_ID).Value2 = NextPersonId()
     End If
 
     If SafeLong(PersonCell(rowIndex, COL_STT).Value2, 0) <= 0 Then
@@ -224,6 +358,7 @@ Private Sub InitializePersonRow(ByVal rowIndex As Long)
         Next scanRow
         PersonCell(rowIndex, COL_STT).Value2 = maxStt + 1
     End If
+    SyncPersonTechStt rowIndex
 End Sub
 
 Private Function PreviousBranchLevel(ByVal rowIndex As Long) As Long

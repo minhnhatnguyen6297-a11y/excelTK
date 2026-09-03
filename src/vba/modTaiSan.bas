@@ -21,16 +21,16 @@ Public Sub HandleTaiSanChange(ByVal changedRange As Range)
 End Sub
 
 Public Function TaiSanHasData(ByVal assetIndex As Long) As Boolean
-    TaiSanHasData = (Len(Trim$(CStr(AssetValueCell(assetIndex, ASSET_FIELD_LOAI_SO_OFFSET).Value2))) > 0 Or _
-                     Len(Trim$(CStr(AssetValueCell(assetIndex, ASSET_FIELD_SERIAL_OFFSET).Value2))) > 0 Or _
-                     Len(Trim$(CStr(AssetValueCell(assetIndex, ASSET_FIELD_SO_THUA_OFFSET).Value2))) > 0 Or _
-                     Len(Trim$(CStr(AssetValueCell(assetIndex, ASSET_FIELD_DIA_CHI_DAT_OFFSET).Value2))) > 0)
+    TaiSanHasData = (Len(Trim$(ValueToExportText(AssetValueCell(assetIndex, ASSET_FIELD_LOAI_SO_OFFSET).Value2))) > 0 Or _
+                     Len(Trim$(ValueToExportText(AssetValueCell(assetIndex, ASSET_FIELD_SERIAL_OFFSET).Value2))) > 0 Or _
+                     Len(Trim$(ValueToExportText(AssetValueCell(assetIndex, ASSET_FIELD_SO_THUA_OFFSET).Value2))) > 0 Or _
+                     Len(Trim$(ValueToExportText(AssetValueCell(assetIndex, ASSET_FIELD_DIA_CHI_DAT_OFFSET).Value2))) > 0)
 End Function
 
 Public Sub RefreshTaiSanCard(ByVal assetIndex As Long)
     If TaiSanHasData(assetIndex) Then
         AssetHiddenCell(assetIndex, ASSET_HIDDEN_HAS_DATA_COLUMN).Value2 = True
-        If Len(Trim$(CStr(AssetHiddenCell(assetIndex, ASSET_HIDDEN_ID_COLUMN).Value2))) = 0 Then
+        If Len(Trim$(ValueToExportText(AssetHiddenCell(assetIndex, ASSET_HIDDEN_ID_COLUMN).Value2))) = 0 Then
             AssetHiddenCell(assetIndex, ASSET_HIDDEN_ID_COLUMN).Value2 = NextAssetId()
         End If
     Else
@@ -104,11 +104,13 @@ Public Sub RefreshTaiSanTable()
     If wasProtected Then ProtectSheetStandard wsExport
 End Sub
 
-Private Function AssetInputRange(ByVal assetIndex As Long) As Range
+Public Function AssetInputRange(ByVal assetIndex As Long) As Range
     Dim firstRow As Long
+    Dim firstColumn As Long
 
     firstRow = AssetCardStartRow(assetIndex) + 1
+    firstColumn = AssetCardStartColumn(assetIndex)
     Set AssetInputRange = ThisWorkbook.Worksheets(SHEET_INPUT).Range( _
-        ThisWorkbook.Worksheets(SHEET_INPUT).Cells.Item(firstRow, ASSET_VALUE_COLUMN), _
-        ThisWorkbook.Worksheets(SHEET_INPUT).Cells.Item(firstRow + ASSET_FIELD_COUNT - 1, 7))
+        ThisWorkbook.Worksheets(SHEET_INPUT).Cells.Item(firstRow, firstColumn), _
+        ThisWorkbook.Worksheets(SHEET_INPUT).Cells.Item(firstRow + ASSET_FIELD_COUNT - 1, firstColumn + 1))
 End Function
