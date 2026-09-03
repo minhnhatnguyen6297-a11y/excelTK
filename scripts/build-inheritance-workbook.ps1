@@ -1117,6 +1117,27 @@ try {
         [string]$testInput.Range("G9:G38").NumberFormat -ne "@") {
         $schemaFailures.Add("Họ tên và địa chỉ Người phải có định dạng Text.")
     }
+    $expectedPickerButtons = @(
+        @{ Name = "btnChonNoiLayMau"; Text = "Chọn nơi lấy mẫu"; OnAction = "ChonNoiLayMau" },
+        @{ Name = "btnChonVanBan"; Text = "Chọn văn bản"; OnAction = "ChonVanBan" },
+        @{ Name = "btnChonNoiXuat"; Text = "Chọn nơi xuất"; OnAction = "ChonNoiXuat" }
+    )
+    foreach ($expectedPicker in $expectedPickerButtons) {
+        $pickerShape = $null
+        try {
+            $pickerShape = $testInput.Shapes.Item([string]$expectedPicker.Name)
+            if ([string]$pickerShape.OnAction -ne [string]$expectedPicker.OnAction -or
+                [string]$pickerShape.TextFrame2.TextRange.Text -ne [string]$expectedPicker.Text) {
+                $schemaFailures.Add("Nút $($expectedPicker.Name) phải hiển thị '$($expectedPicker.Text)' và gọi $($expectedPicker.OnAction).")
+            }
+        }
+        catch {
+            $schemaFailures.Add("Thiếu nút chọn Word $($expectedPicker.Name) trên sheet NhapLieu.")
+        }
+        finally {
+            if ($null -ne $pickerShape) { Release-ComObject $pickerShape }
+        }
+    }
     if (-not [bool]$testInput.Range("L:L").EntireColumn.Hidden -or
         [bool]$testInput.Range("J8").Locked -or [bool]$testInput.Range("J9").Locked -or
         [string]$testInput.Range("J9:Z38").NumberFormat -ne "@") {
